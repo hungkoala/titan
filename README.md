@@ -1,0 +1,1 @@
+run git config --global --add url."git@gitlab.com:".insteadOf "https://gitlab.com/"
