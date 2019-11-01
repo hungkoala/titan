@@ -4,6 +4,10 @@ import (
 	"net/http"
 )
 
+const (
+	XRequestId = "X-REQUEST-ID"
+)
+
 // Request is a simple struct
 type Request struct {
 	Method  string      `json:"method"`

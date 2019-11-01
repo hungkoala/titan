@@ -1,36 +1,36 @@
 package nats
 
 import (
-	"github.com/nats-io/nats.go"
+	"fmt"
 	"log"
+	"time"
+
+	"github.com/nats-io/nats.go"
 )
 
-// Connection holds exposed connection from nats
 type Connection struct {
-	Conn *nats.Conn
-	Enc  *nats.EncodedConn
+	Conn *nats.EncodedConn
 }
 
 // NewConnection connects to default nats address
-func NewConnection(address string) *Connection {
+func NewConnection(address string) (*Connection, error) {
 	log.Println("Connecting to NATS Server at: " + address)
-
-	if address == "" {
-		address = nats.DefaultURL
-	}
 
 	conn, err := nats.Connect(address)
 	if err != nil {
-		panic("Cannot connect to NATS Server")
+		return nil, fmt.Errorf("error connecting to NATS: %v", err)
 	}
 
 	enc, err := nats.NewEncodedConn(conn, nats.JSON_ENCODER)
 	if err != nil {
-		log.Fatal("Cannot construct JSON encoded connection")
+		return nil, fmt.Errorf("cannot construct JSON encoded connection to NATS: %v", err)
 	}
 
-	return &Connection{
-		Conn: conn,
-		Enc:  enc,
-	}
+	return &Connection{Conn: enc}, nil
+}
+
+func (srv *Connection) SendRequest(subject string, rq *Request) (*Response, error) {
+	rp := Response{}
+	err := srv.Conn.Request("test", rq, &rp, 3*time.Second)
+	return &rp, err
 }

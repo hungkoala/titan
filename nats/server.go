@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -31,111 +30,62 @@ type Server struct {
 	// upload rate, most users will prefer to use
 	// ReadHeaderTimeout. It is valid to use them both.
 	ReadTimeout time.Duration
-
-	// ReadHeaderTimeout is the amount of time allowed to read
-	// request headers. The connection's read deadline is reset
-	// after reading the headers and the Handler can decide what
-	// is considered too slow for the body. If ReadHeaderTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
-	ReadHeaderTimeout time.Duration
-
-	// WriteTimeout is the maximum duration before timing out
-	// writes of the response. It is reset whenever a new
-	// request's header is read. Like ReadTimeout, it does not
-	// let Handlers make decisions on a per-request basis.
-	WriteTimeout time.Duration
-
-	// IdleTimeout is the maximum amount of time to wait for the
-	// next request when keep-alives are enabled. If IdleTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
-	IdleTimeout time.Duration
-
-	// MaxHeaderBytes controls the maximum number of bytes the
-	// server will read parsing the request header's keys and
-	// values, including the request line. It does not limit the
-	// size of the request body.
-	// If zero, DefaultMaxHeaderBytes is used.
-	MaxHeaderBytes int
-
-	// ErrorLog specifies an optional logger for errors accepting
-	// connections, unexpected behavior from handlers, and
-	// underlying FileSystem errors.
-	// If nil, logging is done via the log package's standard logger.
-	//ErrorLog *log.Logger
-	Logger logur.Logger
-
-	inShutdown int32 // accessed atomically (non-zero means we're in Shutdown)
-
-	subscription *oNats.Subscription
 }
 
-// ListenAndServe listens on the TCP network address addr and then calls
-// Serve with handler to handle requests on incoming connections.
-// Accepted connections are configured to enable TCP keep-alives.
-//
-// The handler is typically nil, in which case the DefaultServeMux is used.
-//
 // ListenAndServe always returns a non-nil error.
-func ListenAndServe(addr string, handler http.Handler) error {
-	server := &Server{Addr: addr, Handler: handler}
-	return server.ListenAndServe()
+func ListenAndServe(subject string, handler http.Handler) error {
+	server := &Server{Subject: subject, Handler: handler}
+	return server.Start()
 }
 
-func (srv *Server) ListenAndServe() error {
-	if srv.shuttingDown() {
-		return ErrServerClosed
-	}
+func (srv *Server) Start() error {
 
 	if srv.Handler == nil {
 		return errors.New("nats: Handler not found")
 	}
 
-	timeoutHandler := http.TimeoutHandler(srv.Handler, 3*time.Second, "timeout")
+	if srv.Subject == "" {
+		return errors.New("nats: Subject can not be empty")
+	}
+
+	timeout := srv.ReadTimeout
+	if timeout == 0 {
+		timeout = 3 * time.Second
+	}
+
+	timeoutHandler := http.TimeoutHandler(srv.Handler, timeout, "timeout")
 
 	addr := srv.Addr
 	if addr == "" {
-		addr = "nats://127.0.0.1:4222"
+		addr = oNats.DefaultURL
 	}
 
-	logger := srv.Logger
-	if logger == nil {
-		logger = log.DefaultLogger(nil)
+	logger := log.DefaultLogger(nil)
+
+	conn, err := NewConnection(addr)
+	if err != nil {
+		return err
 	}
+	logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": addr, "subject": srv.Subject})
 
-	conn := NewConnection(addr)
-	//srv.Serve(conn.Enc, logger, srv.Subject)
-	subscription, err := srv.Serve(conn.Enc, logger, "test", timeoutHandler)
-
+	subscription, err := srv.serve(conn.Conn, logger, srv.Subject, timeoutHandler)
 	if err != nil {
 		return err
 	}
 
-	//srv.subscription = subscription
-
 	// Handle SIGINT and SIGTERM.
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Println(<-ch)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	// Stop the service gracefully.
+	<-stop
+	logger.Info("Server is being closed")
 	_ = subscription.Unsubscribe()
+	conn.Conn.Close()
 
 	return nil
 }
 
-var ErrServerClosed = errors.New("nats: Server closed")
-
-func (s *Server) shuttingDown() bool {
-	return atomic.LoadInt32(&s.inShutdown) != 0
-}
-
-func (srv *Server) Serve(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
-	if len(subject) == 0 {
-		logger.Error("No addresses to listen to")
-	}
-
+func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
 	return conn.Subscribe(subject, func(addr string, rpSubject string, rq *Request) {
 		logger.Debug("Received message", map[string]interface{}{"url": rq.URL, "subject": subject})
 
@@ -148,7 +98,7 @@ func (srv *Server) Serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 				Headers:    http.Header{},
 			}
 
-			req, err := natsEventToHttpRequest(rq)
+			req, err := natsRequestToHttpRequest(rq)
 			if err != nil {
 				replyError(enc, logger, err, rpSubject)
 				return
@@ -160,12 +110,6 @@ func (srv *Server) Serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 
 		}(conn)
 	})
-}
-
-func (srv *Server) Close() {
-	if srv.subscription != nil {
-		_ = srv.subscription.Unsubscribe()
-	}
 }
 
 func handlePanic(enc *oNats.EncodedConn, logger logur.Logger, rpSubject string) {
@@ -193,7 +137,7 @@ func replyError(enc *oNats.EncodedConn, logger logur.Logger, err error, rpSubjec
 	}
 }
 
-func natsEventToHttpRequest(rq *Request) (*http.Request, error) {
+func natsRequestToHttpRequest(rq *Request) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)

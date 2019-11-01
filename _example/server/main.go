@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"gitlab.com/silenteer/go-nats/nats"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"gitlab.com/silenteer/go-nats/nats"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello world"))
+		_, _ = w.Write([]byte("hello world"))
 	})
 
 	r.Get("/user/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -32,20 +33,25 @@ func main() {
 		}
 
 		e, _ := json.Marshal(data)
-		w.Write(e)
+		_, _ = w.Write(e)
 	})
 
 	r.Put("/user/{id}", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := ioutil.ReadAll(r.Body)
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 
 	r.Post("/user/{id}", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := ioutil.ReadAll(r.Body)
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 
-	server := &nats.Server{Handler: r}
-	server.ListenAndServe()
-	//select {}
+	err := nats.ListenAndServe("test", r)
+	checkErr(err)
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
