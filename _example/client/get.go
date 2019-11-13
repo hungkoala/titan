@@ -7,9 +7,12 @@ import (
 )
 
 func main() {
-	addr := "nats://127.0.0.1:4222"
-	subject := "test"
-	msg, err := nats.Get(addr, subject, "/hello")
+	request, _ := nats.NewRequestBuilder().
+		Get("/hello").
+		Subject("test").
+		Build()
+	client := nats.NewClient("nats://127.0.0.1:4222")
+	msg, err := client.Request(request)
 	if err != nil {
 		log.Fatal(err)
 	}

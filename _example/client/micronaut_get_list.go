@@ -2,19 +2,19 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
 func main() {
-	addr := "nats://127.0.0.1:4222"
-	subject := "nats-service"
-	path := "http://localhost:7073/api/app/testService/getQueryParams/pathValue?param1=p1&param2=p2"
-	header := http.Header{}
-	header.Add("h1", "h1v1")
-	header.Add("h1", "h1v2")
-	msg, err := nats.SendJsonRequest(addr, subject, path, nil, header, "GET")
+	client := nats.NewClient("nats://127.0.0.1:4222")
+	request, _ := nats.NewRequestBuilder().
+		Get("http://localhost:7073/api/app/testService/getQueryParams/pathValue?param1=p1&param2=p2").
+		Subject("nats-service").
+		AddHeader("h1", "h1v1").
+		AddHeader("h1", "h1v2").
+		Build()
+	msg, err := client.Request(request)
 	if err != nil {
 		log.Fatal(err)
 	}

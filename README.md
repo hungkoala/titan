@@ -3,6 +3,8 @@
 Run command below
 ~~~~
 git config --global --add url."git@gitlab.com:".insteadOf "https://gitlab.com/"
+
+export GOPRIVATE="gitlab.com/silenteer,git.tutum.dev/medi/tutum"
 ~~~~
 
  
@@ -27,10 +29,12 @@ git config --global --add url."git@gitlab.com:".insteadOf "https://gitlab.com/"
  - metrics and tracing using [Prometheus](https://prometheus.io/) and [Jaeger](https://www.jaegertracing.io/) (via [OpenCensus](https://opencensus.io/))
  - health checks (using [AppsFlyer/go-sundheit](https://github.com/AppsFlyer/go-sundheit))
  - test (using [testify](https://github.com/stretchr/testify))
- - load test (using [vegeta](https://github.com/tsenart/vegeta)
+ - load test (using [vegeta](https://github.com/tsenart/vegeta))
  - file system ([spf13/afero](https://github.com/spf13/afero)) 
  - code gen  https://clipperhouse.com/gen/overview/, https://github.com/awalterschulze/goderive, https://github.com/hexdigest/gowrap
  - golang jq like https://github.com/tidwall/gjson
+ - validator ([go-playground/validator](https://github.com/go-playground/validator))
+ - dependency injection ([]()) 
 
 ## Dev tools ##
 - go format  https://golang.org/cmd/gofmt/

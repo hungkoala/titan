@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 
-	"gitlab.com/silenteer/go-nats/_example/server/controller"
-
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"gitlab.com/silenteer/go-nats/nats"
@@ -16,13 +14,13 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/hello", controller.Hello)
+	r.Get("/hello", Hello)
 
-	r.Get("/user/{id}", controller.Get)
+	r.Get("/user/{id}", Get)
 
-	r.Put("/user/{id}", controller.Put)
+	r.Put("/user/{id}", Put)
 
-	r.Post("/user/{id}", controller.Post)
+	r.Post("/user/{id}", Post)
 
 	err := nats.ListenAndServe("test", r)
 	checkErr(err)

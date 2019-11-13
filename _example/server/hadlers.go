@@ -1,4 +1,4 @@
-package controller
+package main
 
 import (
 	"encoding/json"
@@ -32,4 +32,8 @@ func Put(w http.ResponseWriter, r *http.Request) {
 func Post(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	_, _ = w.Write(body)
+}
+
+func Hello(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte("hello world"))
 }

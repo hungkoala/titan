@@ -2,7 +2,6 @@ package nats
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	oNats "github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"gitlab.com/silenteer/go-nats/log"
 	"logur.dev/logur"
 )
@@ -98,7 +98,7 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 				Headers:    http.Header{},
 			}
 
-			req, err := natsRequestToHttpRequest(rq)
+			req, err := requestToHttpRequest(rq)
 			if err != nil {
 				replyError(enc, logger, err, rpSubject)
 				return
@@ -137,7 +137,7 @@ func replyError(enc *oNats.EncodedConn, logger logur.Logger, err error, rpSubjec
 	}
 }
 
-func natsRequestToHttpRequest(rq *Request) (*http.Request, error) {
+func requestToHttpRequest(rq *Request) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)

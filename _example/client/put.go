@@ -2,27 +2,28 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
 func main() {
-	addr := "nats://127.0.0.1:4222"
-	subject := "test"
-	path := "/user/1110"
+	client := nats.NewClient("nats://127.0.0.1:4222")
+	request, _ := nats.NewRequestBuilder().
+		Post("/user/2020?from=67&to=90").
+		Subject("test").
+		SetHeader("Kaka", "value").
+		SetHeader("Data", "data value").
+		AddHeader("Kaka", "value2").
+		BodyJSON(struct {
+			Name  string
+			Email string
+		}{
+			"hung",
+			"hung@silentium.io",
+		}).
+		Build()
+	msg, err := client.Request(request)
 
-	body := struct {
-		Name  string
-		Email string
-	}{
-		"hung",
-		"hung@silentium.io",
-	}
-	header := http.Header{}
-	header.Add("Content-Type", "application/json; charset=utf-8")
-
-	msg, err := nats.SendJsonRequest(addr, subject, path, body, header, "POST")
 	if err != nil {
 		log.Fatal(err)
 	}

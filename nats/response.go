@@ -16,9 +16,6 @@ func (res *Response) SetContentType(value string) {
 	res.Headers.Set("Content-Type", value)
 }
 
-func (r *Response) Flush() {
-}
-
 func (r *Response) Header() http.Header {
 	return r.Headers
 }
