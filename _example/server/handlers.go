@@ -9,7 +9,15 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
-func Get(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	userService *UserService
+}
+
+func NewHandler(userService *UserService) *Handler {
+	return &Handler{userService: userService}
+}
+
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		RequestId     interface{}         `json:"RequestId"`
 		RequestParams map[string][]string `json:"RequestParams"`
@@ -24,16 +32,16 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(e)
 }
 
-func Put(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Put(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	_, _ = w.Write(body)
 }
 
-func Post(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	_, _ = w.Write(body)
 }
 
-func Hello(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Hello(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("hello world"))
 }

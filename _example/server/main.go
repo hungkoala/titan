@@ -1,33 +1,32 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"gitlab.com/silenteer/go-nats/log"
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	logger := log.DefaultLogger(nil)
+	userService := NewUserService()
+	handler := NewHandler(userService)
+	router := NewRouter(handler)
 
-	r.Get("/hello", Hello)
-
-	r.Get("/user/{id}", Get)
-
-	r.Put("/user/{id}", Put)
-
-	r.Post("/user/{id}", Post)
-
-	err := nats.ListenAndServe("test", r)
-	checkErr(err)
-}
-
-func checkErr(err error) {
+	server, err := nats.NewServer(
+		nats.Routes(router),
+		nats.Subject("test"),
+		nats.Logger(logger),
+	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+		os.Exit(1)
+	}
+
+	err = server.Start()
+	if err != nil {
+		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+		os.Exit(1)
 	}
 }

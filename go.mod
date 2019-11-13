@@ -3,6 +3,8 @@ module gitlab.com/silenteer/go-nats
 go 1.13
 
 require (
+	github.com/callistaenterprise/goblog/accountservice v0.0.0-20190728084734-49f10debe3c3
+	github.com/callistaenterprise/goblog/common v0.0.0-20190728084734-49f10debe3c3
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
 	github.com/google/go-querystring v1.0.0 // indirect

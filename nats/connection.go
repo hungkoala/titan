@@ -1,9 +1,9 @@
 package nats
 
 import (
-	"errors"
-	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/nats-io/nats.go"
 )
@@ -19,12 +19,12 @@ type Connection struct {
 func NewConnection(url string, options ...nats.Option) (*Connection, error) {
 	conn, err := nats.Connect(url, options...)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to NATS: %v", err)
+		return nil, errors.WithMessage(err, "Error connecting to NATS")
 	}
 
 	enc, err := nats.NewEncodedConn(conn, nats.JSON_ENCODER)
 	if err != nil {
-		return nil, fmt.Errorf("cannot construct JSON encoded connection to NATS: %v", err)
+		return nil, errors.WithMessage(err, "Cannot construct JSON encoded connection to NATS")
 	}
 
 	return &Connection{Conn: enc}, nil
