@@ -17,4 +17,11 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("Reply: %s", string(msg.Body))
+	// write header
+	for name, values := range msg.GetHeaders() {
+		log.Printf("Key: %s", name)
+		for _, value := range values {
+			log.Printf("   value : %s", value)
+		}
+	}
 }

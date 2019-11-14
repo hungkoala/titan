@@ -12,6 +12,18 @@ type Response struct {
 	Body       []byte      `json:"body"`
 }
 
+func (r *Response) GetBody() []byte {
+	return r.Body
+}
+
+func (r *Response) GetHeaders() http.Header {
+	return r.Headers
+}
+
+func (r *Response) GetBodyJson() []byte {
+	return r.Body
+}
+
 //Deprecated: please  use response builder instead
 func (r *Response) Header() http.Header {
 	return r.Headers

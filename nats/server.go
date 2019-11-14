@@ -40,7 +40,6 @@ func GetDefaultOptions() Options {
 
 	return Options{
 		Addr:        oNats.DefaultURL,
-		Subject:     "test",
 		router:      NewRouter(r),
 		ReadTimeout: 3 * time.Second,
 		Logger:      log.DefaultLogger(nil),

@@ -33,8 +33,8 @@ func (r *ResponseBuilder) SetHeader(key, value string) *ResponseBuilder {
 	return r
 }
 
-func (r *ResponseBuilder) SetContentType(contentType string) {
-	r.SetHeader(contentType, contentType)
+func (r *ResponseBuilder) SetContentType(value string) {
+	r.SetHeader(contentType, value)
 }
 
 func (r *ResponseBuilder) Body(body []byte) *ResponseBuilder {
