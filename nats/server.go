@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/middleware"
+
 	"github.com/go-chi/chi"
 
 	oNats "github.com/nats-io/nats.go"
@@ -32,9 +34,9 @@ type Options struct {
 
 func GetDefaultOptions() Options {
 	r := chi.NewRouter()
-	//r.Use(middleware.RequestID)
-	//r.Use(middleware.Logger)
-	//r.Use(middleware.Recoverer)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
 	return Options{
 		Addr:        oNats.DefaultURL,
