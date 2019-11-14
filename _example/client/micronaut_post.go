@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := nats.NewClient("nats://127.0.0.1:4222")
-	request, _ := nats.NewRequestBuilder().
+	request, _ := nats.NewReqBuilder().
 		Post("http://localhost:7073/api/app/testService/post").
 		Subject("nats-service").
 		BodyJSON(struct {

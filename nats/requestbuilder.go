@@ -1,9 +1,10 @@
 package nats
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
+
+	"github.com/pkg/errors"
 )
 
 // Request is a simple struct
@@ -22,7 +23,7 @@ type RequestBuilder struct {
 }
 
 // New returns a new default  Request.
-func NewRequestBuilder() *RequestBuilder {
+func NewReqBuilder() *RequestBuilder {
 	rq := &RequestBuilder{
 		method:  "GET",
 		headers: make(http.Header),
@@ -166,7 +167,7 @@ func (r *RequestBuilder) Build() (*Request, error) {
 	if r.bodyProvider != nil {
 		body, err = r.bodyProvider.Body()
 		if err != nil {
-			return nil, errors.New("Invalid body  " + err.Error())
+			return nil, errors.WithMessage(err, "Invalid body format ")
 		}
 	}
 	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body, Subject: r.subject}, nil

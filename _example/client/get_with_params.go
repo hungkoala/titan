@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := nats.NewClient("nats://127.0.0.1:4222")
-	request, _ := nats.NewRequestBuilder().
+	request, _ := nats.NewReqBuilder().
 		Get("/user/2020?from=67&to=90").
 		Subject("test").
 		SetHeader("Kaka", "value").

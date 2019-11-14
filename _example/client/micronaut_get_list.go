@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := nats.NewClient("nats://127.0.0.1:4222")
-	request, _ := nats.NewRequestBuilder().
+	request, _ := nats.NewReqBuilder().
 		Get("http://localhost:7073/api/app/testService/getQueryParams/pathValue?param1=p1&param2=p2").
 		Subject("nats-service").
 		AddHeader("h1", "h1v1").

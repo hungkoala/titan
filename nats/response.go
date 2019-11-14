@@ -12,24 +12,22 @@ type Response struct {
 	Body       []byte      `json:"body"`
 }
 
-func (res *Response) SetContentType(value string) {
-	res.Headers.Set("Content-Type", value)
-}
-
+//Deprecated: please  use response builder instead
 func (r *Response) Header() http.Header {
 	return r.Headers
 }
 
-func (r *Response) Write(p []byte) (n int, err error) {
-	r.Body = p
+//Deprecated: please  use response builder instead
+func (r *Response) Write(b []byte) (n int, err error) {
+	r.Body = b
 	r.WriteHeader(http.StatusOK)
-	return len(p), nil
+	return len(b), nil
 }
 
+//Deprecated: please  use response builder instead
 func (r *Response) WriteHeader(code int) {
-	// Set a default Content-Type
-	if _, hasType := r.Headers["Content-Type"]; !hasType {
-		r.Headers.Add("Content-Type", "application/json; charset=utf-8")
+	if _, hasType := r.Headers[contentType]; !hasType {
+		r.Headers.Add(contentType, "application/json; charset=utf-8")
 	}
 	r.StatusCode = code
 }

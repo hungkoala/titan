@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	request, _ := nats.NewRequestBuilder().
+	request, _ := nats.NewReqBuilder().
 		Get("/hello").
 		Subject("test").
 		Build()

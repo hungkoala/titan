@@ -15,7 +15,7 @@ func main() {
 	router := NewRouter(handler)
 
 	server, err := nats.NewServer(
-		nats.Routes(router),
+		nats.RouterProvider(router),
 		nats.Subject("test"),
 		nats.Logger(logger),
 	)

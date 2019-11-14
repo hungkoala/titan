@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/middleware"
-
 	"github.com/go-chi/chi"
 
 	oNats "github.com/nats-io/nats.go"
@@ -27,21 +25,21 @@ type Option func(*Options) error
 type Options struct {
 	Addr        string // TCP address to listen on, ":http" if empty
 	Subject     string
-	router      chi.Router
+	router      Router
 	ReadTimeout time.Duration
 	Logger      logur.Logger
 }
 
 func GetDefaultOptions() Options {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	//r.Use(middleware.RequestID)
+	//r.Use(middleware.Logger)
+	//r.Use(middleware.Recoverer)
 
 	return Options{
 		Addr:        oNats.DefaultURL,
 		Subject:     "test",
-		router:      r,
+		router:      NewRouter(r),
 		ReadTimeout: 3 * time.Second,
 		Logger:      log.DefaultLogger(nil),
 	}
@@ -61,7 +59,7 @@ func Address(address string) Option {
 	}
 }
 
-func Routes(r Router) Option {
+func RouterProvider(r RouteProvider) Option {
 	return func(o *Options) error {
 		r.Routes(o.router)
 		return nil
@@ -164,21 +162,24 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 		go func(enc *oNats.EncodedConn) {
 			defer handlePanic(conn, logger, rpSubject)
 
-			resp := &Response{
+			rp := &Response{
 				StatusCode: 200, // internal server error as default
 				Status:     "",
 				Headers:    http.Header{},
 			}
 
-			req, err := requestToHttpRequest(rq)
+			rq, err := requestToHttpRequest(rq)
 			if err != nil {
 				replyError(enc, logger, err, rpSubject)
 				return
 			}
 
-			handler.ServeHTTP(resp, req)
+			handler.ServeHTTP(rp, rq)
 
-			_ = enc.Publish(rpSubject, resp)
+			err = enc.Publish(rpSubject, rp)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
+			}
 
 		}(conn)
 	})
