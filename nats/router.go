@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-type HandlerFunc func(*Context, *SRequest) *Response
+type HandlerFunc func(*Context, *Request) *Response
 
 type RouteProvider interface {
 	Routes(r Router) // side effect function
@@ -65,7 +65,7 @@ func (m *Mux) MethodFunc(method, pattern string, handlerFunc HandlerFunc) {
 	})
 }
 
-func httpRequestToRequest(r *http.Request) (*SRequest, error) {
+func httpRequestToRequest(r *http.Request) (*Request, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
@@ -87,12 +87,12 @@ func httpRequestToRequest(r *http.Request) (*SRequest, error) {
 		}
 	}
 
-	return &SRequest{
+	return &Request{
 		Body:          body,
-		Path:          r.RequestURI,
+		URL:           r.RequestURI,
 		Method:        r.Method,
 		Headers:       r.Header,
-		RequestParams: r.URL.Query(),
-		RouteParams:   rRouteParams,
+		requestParams: r.URL.Query(),
+		routeParams:   rRouteParams,
 	}, nil
 }

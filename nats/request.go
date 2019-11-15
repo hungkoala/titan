@@ -17,13 +17,16 @@ type Request struct {
 	Body    []byte      `json:"body"`
 	URL     string      `json:"url"`
 	Subject string      `json:"subject"`
+
+	// used in server side
+	requestParams map[string][]string
+	routeParams   map[string]string
 }
 
-type SRequest struct { // todo: should merge with request above
-	Method        string
-	Path          string
-	Headers       http.Header
-	Body          []byte
-	RequestParams map[string][]string
-	RouteParams   map[string]string
+func (r *Request) RequestParams() map[string][]string {
+	return r.requestParams
+}
+
+func (r *Request) RouteParams() map[string]string {
+	return r.routeParams
 }
