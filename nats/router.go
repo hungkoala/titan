@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -19,7 +20,8 @@ type RouteProvider interface {
 
 type Router interface {
 	http.Handler
-	MethodFunc(method, pattern string, h HandlerFunc)
+	Register(method, pattern string, h HandlerFunc)
+	//RegisterJson(method, pattern string, h HandlerFunc)
 }
 
 type Mux struct {
@@ -36,12 +38,14 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Router.ServeHTTP(w, r)
 }
 
-func (m *Mux) MethodFunc(method, pattern string, handlerFunc HandlerFunc) {
+func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 	m.Router.MethodFunc(method, pattern, func(w http.ResponseWriter, r *http.Request) {
-		c := NewContext(r.Context())
-		sR, _ := httpRequestToRequest(r)
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
-		rp := handlerFunc(c, sR)
+		newResponse, _ := httpRequestToRequest(r)
+
+		rp := handlerFunc(NewContext(ctx), newResponse)
 
 		// write header
 		for name, values := range rp.Header() {
@@ -77,25 +81,10 @@ func httpRequestToRequest(r *http.Request) (*Request, error) {
 		body = nil
 	}
 
-	oRouteParams := chi.RouteContext(r.Context()).URLParams
-	rRouteParams := map[string]string{}
-
-	if oRouteParams.Keys != nil {
-		for i, k := range oRouteParams.Keys {
-			if oRouteParams.Values != nil && len(oRouteParams.Values) > i {
-				rRouteParams[k] = oRouteParams.Values[i]
-			} else {
-				rRouteParams[k] = ""
-			}
-		}
-	}
-
 	return &Request{
-		Body:          body,
-		URL:           r.RequestURI,
-		Method:        r.Method,
-		Headers:       r.Header,
-		requestParams: r.URL.Query(),
-		routeParams:   rRouteParams,
+		Body:    body,
+		URL:     r.RequestURI,
+		Method:  r.Method,
+		Headers: r.Header,
 	}, nil
 }

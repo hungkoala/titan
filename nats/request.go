@@ -10,6 +10,8 @@ import (
 const (
 	XRequestId      = "X-REQUEST-ID"
 	XLoggerId       = "X-LOGGER-ID"
+	XPathParams     = "X-PATH-PARAMS"
+	XQueryParams    = "X-QUERY-PARAMS"
 	XHostName       = "hostname"
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
@@ -26,16 +28,8 @@ type Request struct {
 	Subject string      `json:"subject"`
 
 	// used in server side
-	requestParams map[string][]string
-	routeParams   map[string]string
-}
-
-func (r *Request) RequestParams() map[string][]string {
-	return r.requestParams
-}
-
-func (r *Request) RouteParams() map[string]string {
-	return r.routeParams
+	//requestParams map[string][]string
+	//routeParams   map[string]string
 }
 
 func (r *Request) HasBody() bool {

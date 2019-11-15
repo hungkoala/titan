@@ -15,14 +15,15 @@ func NewHandler(userService *UserService) *Handler {
 }
 
 func (h *Handler) Get(c *nats.Context, r *nats.Request) *nats.Response {
+	c.Logger().Info("handler handles request")
 	data := struct {
-		RequestId     interface{}         `json:"RequestId"`
-		RequestParams map[string][]string `json:"RequestParams"`
-		RouteParams   map[string]string   `json:"RouteParams"`
+		RequestId   interface{}      `json:"RequestId"`
+		QueryParams nats.QueryParams `json:"QueryParams"`
+		PathParams  nats.PathParams  `json:"PathParams"`
 	}{
-		"",
-		r.RequestParams(),
-		r.RouteParams(),
+		c.RequestId(),
+		c.QueryParams(),
+		c.PathParams(),
 	}
 
 	e, _ := json.Marshal(data)

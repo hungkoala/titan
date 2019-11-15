@@ -47,6 +47,7 @@ func GetDefaultOptions() Options {
 	//r.Use(middleware.RequestID)
 	//r.Use(middleware.Logger)
 	//r.Use(middleware.Recoverer)
+	r.Use(RouteParamsMiddleware)
 
 	return Options{
 		Addr:        oNats.DefaultURL,
@@ -306,7 +307,15 @@ func requestToHttpRequest(rq *Request, c context.Context) (*http.Request, error)
 	if rq.Headers != nil {
 		request.Header = rq.Headers
 	}
-	request.Header.Add("Connection", "close")
 
 	return request, nil
+}
+
+func RouteParamsMiddleware(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		queryParams := QueryParams(r.URL.Query())
+		ctx := context.WithValue(r.Context(), XQueryParams, queryParams)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+	return http.HandlerFunc(fn)
 }

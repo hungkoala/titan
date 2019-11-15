@@ -13,8 +13,8 @@ func NewRouter(h *Handler) *Router {
 }
 
 func (r *Router) Routes(c nats.Router) {
-	c.MethodFunc("GET", "/hello", r.h.Hello)
-	c.MethodFunc("GET", "/user/{id}", r.h.Get)
-	c.MethodFunc("PUT", "/user/{id}", r.h.Put)
-	c.MethodFunc("POST", "/user/{id}", r.h.Post)
+	c.Register("GET", "/hello", r.h.Hello)
+	c.Register("GET", "/user/{id}", r.h.Get)
+	c.Register("PUT", "/user/{id}", r.h.Put)
+	c.Register("POST", "/user/{id}", r.h.Post)
 }
