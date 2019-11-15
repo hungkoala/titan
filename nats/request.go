@@ -2,8 +2,6 @@ package nats
 
 import (
 	"net/http"
-
-	"github.com/go-chi/chi"
 )
 
 const (
@@ -27,5 +25,5 @@ type SRequest struct { // todo: should merge with request above
 	Headers       http.Header
 	Body          []byte
 	RequestParams map[string][]string
-	RouteParams   chi.RouteParams
+	RouteParams   map[string]string
 }

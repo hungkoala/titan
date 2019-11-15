@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 
 	"gitlab.com/silenteer/go-nats/nats"
-
-	"github.com/go-chi/chi"
 )
 
 type Handler struct {
@@ -20,7 +18,7 @@ func (h *Handler) Get(c *nats.Context, r *nats.SRequest) *nats.Response {
 	data := struct {
 		RequestId     interface{}         `json:"RequestId"`
 		RequestParams map[string][]string `json:"RequestParams"`
-		RouteParams   chi.RouteParams     `json:"RouteParams"`
+		RouteParams   map[string]string   `json:"RouteParams"`
 	}{
 		"",
 		r.RequestParams,

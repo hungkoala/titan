@@ -74,12 +74,25 @@ func httpRequestToRequest(r *http.Request) (*SRequest, error) {
 
 	defer func() { _ = r.Body.Close() }()
 
+	oRouteParams := chi.RouteContext(r.Context()).URLParams
+	rRouteParams := map[string]string{}
+
+	if oRouteParams.Keys != nil {
+		for i, k := range oRouteParams.Keys {
+			if oRouteParams.Values != nil && len(oRouteParams.Values) > i {
+				rRouteParams[k] = oRouteParams.Values[i]
+			} else {
+				rRouteParams[k] = ""
+			}
+		}
+	}
+
 	return &SRequest{
 		Body:          body,
 		Path:          r.RequestURI,
 		Method:        r.Method,
 		Headers:       r.Header,
 		RequestParams: r.URL.Query(),
-		RouteParams:   chi.RouteContext(r.Context()).URLParams,
+		RouteParams:   rRouteParams,
 	}, nil
 }
