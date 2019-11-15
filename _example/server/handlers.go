@@ -1,14 +1,11 @@
-package main
+package server
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
 
 	"gitlab.com/silenteer/go-nats/nats"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 )
 
 type Handler struct {
@@ -19,15 +16,15 @@ func NewHandler(userService *UserService) *Handler {
 	return &Handler{userService: userService}
 }
 
-func (h *Handler) Get(r *http.Request) *nats.Response {
+func (h *Handler) Get(c *nats.Context, r *nats.SRequest) *nats.Response {
 	data := struct {
 		RequestId     interface{}         `json:"RequestId"`
 		RequestParams map[string][]string `json:"RequestParams"`
 		URLParams     chi.RouteParams     `json:"URLParams"`
 	}{
-		r.Context().Value(middleware.RequestIDKey),
-		r.URL.Query(),
-		chi.RouteContext(r.Context()).URLParams,
+		"",
+		r.RequestParams,
+		r.RouteParams,
 	}
 
 	e, _ := json.Marshal(data)
@@ -37,23 +34,21 @@ func (h *Handler) Get(r *http.Request) *nats.Response {
 		Build()
 }
 
-func (h *Handler) Put(r *http.Request) *nats.Response {
-	body, _ := ioutil.ReadAll(r.Body)
+func (h *Handler) Put(c *nats.Context, r *nats.SRequest) *nats.Response {
 	return nats.
 		NewResBuilder().
-		Body(body).
+		Body(r.Body).
 		Build()
 }
 
-func (h *Handler) Post(r *http.Request) *nats.Response {
-	body, _ := ioutil.ReadAll(r.Body)
+func (h *Handler) Post(c *nats.Context, r *nats.SRequest) *nats.Response {
 	return nats.
 		NewResBuilder().
-		Body(body).
+		Body(r.Body).
 		Build()
 }
 
-func (h *Handler) Hello(r *http.Request) *nats.Response {
+func (h *Handler) Hello(c *nats.Context, r *nats.SRequest) *nats.Response {
 	return nats.
 		NewResBuilder().
 		Body([]byte("hello world")).

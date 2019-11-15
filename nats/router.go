@@ -2,6 +2,8 @@ package nats
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 
 	"logur.dev/logur"
@@ -9,7 +11,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-type HandlerFunc func(r *http.Request) *Response
+type HandlerFunc func(*Context, *SRequest) *Response
 
 type RouteProvider interface {
 	Routes(r Router) // side effect function
@@ -18,10 +20,6 @@ type RouteProvider interface {
 type Router interface {
 	http.Handler
 	MethodFunc(method, pattern string, h HandlerFunc)
-	Get(pattern string, h HandlerFunc)
-	Put(pattern string, h HandlerFunc)
-	Post(pattern string, h HandlerFunc)
-	Delete(pattern string, h HandlerFunc)
 }
 
 type Mux struct {
@@ -38,26 +36,12 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Router.ServeHTTP(w, r)
 }
 
-// implement router interface
-func (m *Mux) Get(pattern string, h HandlerFunc) {
-	m.MethodFunc("GET", pattern, h)
-}
-
-func (m *Mux) Put(pattern string, h HandlerFunc) {
-	m.MethodFunc("PUT", pattern, h)
-}
-
-func (m *Mux) Post(pattern string, h HandlerFunc) {
-	m.MethodFunc("POST", pattern, h)
-}
-
-func (m *Mux) Delete(pattern string, h HandlerFunc) {
-	m.MethodFunc("DELETE", pattern, h)
-}
-
 func (m *Mux) MethodFunc(method, pattern string, handlerFunc HandlerFunc) {
 	m.Router.MethodFunc(method, pattern, func(w http.ResponseWriter, r *http.Request) {
-		rp := handlerFunc(r)
+		c := NewContext(r.Context())
+		sR, _ := httpRequestToRequest(r)
+
+		rp := handlerFunc(c, sR)
 
 		// write header
 		for name, values := range rp.Header() {
@@ -79,4 +63,23 @@ func (m *Mux) MethodFunc(method, pattern string, handlerFunc HandlerFunc) {
 			w.WriteHeader(rp.StatusCode)
 		}
 	})
+}
+
+func httpRequestToRequest(r *http.Request) (*SRequest, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return nil, err
+	}
+
+	defer func() { _ = r.Body.Close() }()
+
+	return &SRequest{
+		Body:          body,
+		Path:          r.RequestURI,
+		Method:        r.Method,
+		Headers:       r.Header,
+		RequestParams: r.URL.Query(),
+		RouteParams:   chi.RouteContext(r.Context()).URLParams,
+	}, nil
 }

@@ -2,6 +2,8 @@ package nats
 
 import (
 	"net/http"
+
+	"github.com/go-chi/chi"
 )
 
 const (
@@ -19,9 +21,11 @@ type Request struct {
 	Subject string      `json:"subject"`
 }
 
-func (r *Request) GetID() string {
-	if r.Headers == nil {
-		return ""
-	}
-	return r.Headers.Get(XRequestId)
+type SRequest struct {
+	Method        string
+	Path          string
+	Headers       http.Header
+	Body          []byte
+	RequestParams map[string][]string
+	RouteParams   chi.RouteParams
 }

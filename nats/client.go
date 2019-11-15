@@ -10,6 +10,7 @@ func (srv *Client) Request(rq *Request) (*Response, error) {
 		return nil, err
 	}
 	defer func(c *Connection) {
+		_ = c.Conn.Flush()
 		c.Conn.Close()
 	}(c)
 
