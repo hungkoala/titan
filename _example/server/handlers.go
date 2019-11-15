@@ -20,7 +20,7 @@ func (h *Handler) Get(c *nats.Context, r *nats.SRequest) *nats.Response {
 	data := struct {
 		RequestId     interface{}         `json:"RequestId"`
 		RequestParams map[string][]string `json:"RequestParams"`
-		URLParams     chi.RouteParams     `json:"URLParams"`
+		RouteParams   chi.RouteParams     `json:"RouteParams"`
 	}{
 		"",
 		r.RequestParams,

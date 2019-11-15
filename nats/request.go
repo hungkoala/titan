@@ -21,7 +21,7 @@ type Request struct {
 	Subject string      `json:"subject"`
 }
 
-type SRequest struct {
+type SRequest struct { // todo: should merge with request above
 	Method        string
 	Path          string
 	Headers       http.Header
