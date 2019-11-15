@@ -99,6 +99,21 @@ func NewServer(options ...Option) (*Server, error) {
 	}, nil
 }
 
+func NewServerAndStart(options ...Option) {
+	server, err := NewServer(options...)
+	logger := log.DefaultLogger(nil)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+		os.Exit(1)
+	}
+
+	err = server.Start()
+	if err != nil {
+		logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
+		os.Exit(1)
+	}
+}
+
 type Server struct {
 	Addr    string // TCP address to listen on, ":http" if empty
 	Subject string
@@ -107,6 +122,7 @@ type Server struct {
 
 	ReadTimeout time.Duration
 	Logger      logur.Logger
+	stop        chan interface{}
 }
 
 func (srv *Server) Start() error {
@@ -145,15 +161,34 @@ func (srv *Server) Start() error {
 	}
 
 	// Handle SIGINT and SIGTERM.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
-	<-stop
-	srv.Logger.Info("Nats server is being closed")
-	_ = subscription.Unsubscribe()
-	conn.Conn.Close()
+	srv.stop = make(chan interface{}, 1)
+
+	CleanUp := func() {
+		srv.stop = nil
+		srv.Logger.Info("Nats server is being closed")
+		_ = subscription.Unsubscribe()
+		conn.Conn.Close()
+	}
+
+	select {
+	case <-srv.stop:
+		CleanUp()
+	case <-done:
+		CleanUp()
+	}
+
+	srv.Logger.Info("Nats server is down now")
 
 	return nil
+}
+
+func (srv *Server) Stop() {
+	if srv.stop != nil {
+		srv.stop <- "stop"
+	}
 }
 
 func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
@@ -215,7 +250,10 @@ func requestToHttpRequest(rq *Request) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)
+	} else {
+		body = bytes.NewReader([]byte{})
 	}
+
 	request, err := http.NewRequest(rq.Method, rq.URL, body)
 	if err != nil {
 		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
