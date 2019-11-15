@@ -9,9 +9,13 @@ import (
 
 const (
 	XRequestId      = "X-REQUEST-ID"
+	XLoggerId       = "X-LOGGER-ID"
+	XHostName       = "hostname"
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
 )
+
+type RequestParams map[string][]string
 
 // Request is a simple struct
 type Request struct {

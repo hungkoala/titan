@@ -4,12 +4,13 @@ import (
 	"context"
 	"time"
 
+	"gitlab.com/silenteer/go-nats/log"
+
 	"logur.dev/logur"
 )
 
 type Context struct {
 	context context.Context
-	logger  logur.Logger
 }
 
 func NewContext(c context.Context) *Context {
@@ -33,5 +34,17 @@ func (c *Context) Done() <-chan struct{} {
 }
 
 func (c *Context) Logger() logur.Logger {
-	return c.logger
+	logger, ok := c.Value(XLoggerId).(logur.Logger)
+	if !ok {
+		logger = log.DefaultLogger(map[string]interface{}{})
+	}
+	return logger
+}
+
+func (c *Context) RequestId() string {
+	id, ok := c.Value(XRequestId).(string)
+	if !ok {
+		id = ""
+	}
+	return id
 }

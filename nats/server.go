@@ -2,6 +2,7 @@ package nats
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/middleware"
-
 	"github.com/go-chi/chi"
 
 	oNats "github.com/nats-io/nats.go"
@@ -19,6 +18,16 @@ import (
 	"gitlab.com/silenteer/go-nats/log"
 	"logur.dev/logur"
 )
+
+var hostname string
+
+func init() {
+	var err error
+	hostname, err = os.Hostname()
+	if hostname == "" || err != nil {
+		hostname = "localhost"
+	}
+}
 
 // Option is a function on the options for a connection.
 type Option func(*Options) error
@@ -30,13 +39,14 @@ type Options struct {
 	router      Router
 	ReadTimeout time.Duration
 	Logger      logur.Logger
+	ServiceName string
 }
 
 func GetDefaultOptions() Options {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	//r.Use(middleware.RequestID)
+	//r.Use(middleware.Logger)
+	//r.Use(middleware.Recoverer)
 
 	return Options{
 		Addr:        oNats.DefaultURL,
@@ -81,6 +91,13 @@ func Logger(logger logur.Logger) Option {
 	}
 }
 
+func ServiceName(name string) Option {
+	return func(o *Options) error {
+		o.ServiceName = name
+		return nil
+	}
+}
+
 func NewServer(options ...Option) (*Server, error) {
 	opts := GetDefaultOptions()
 	for _, opt := range options {
@@ -91,11 +108,12 @@ func NewServer(options ...Option) (*Server, error) {
 		}
 	}
 	return &Server{
-		Subject:     opts.Subject,
-		Handler:     opts.router,
-		Addr:        opts.Addr,
-		ReadTimeout: opts.ReadTimeout,
-		Logger:      opts.Logger,
+		subject:     opts.Subject,
+		handler:     opts.router,
+		addr:        opts.Addr,
+		readTimeout: opts.ReadTimeout,
+		logger:      opts.Logger,
+		serviceName: opts.ServiceName,
 	}, nil
 }
 
@@ -115,47 +133,48 @@ func NewServerAndStart(options ...Option) {
 }
 
 type Server struct {
-	Addr    string // TCP address to listen on, ":http" if empty
-	Subject string
+	addr    string // TCP address to listen on, ":http" if empty
+	subject string
 
-	Handler http.Handler // handler to invoke, http.DefaultServeMux if nil
+	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
 
-	ReadTimeout time.Duration
-	Logger      logur.Logger
+	readTimeout time.Duration
+	logger      logur.Logger
 	stop        chan interface{}
+	serviceName string
 }
 
 func (srv *Server) Start() error {
 
-	if srv.Handler == nil {
+	if srv.handler == nil {
 		return errors.New("nats: Handler not found")
 	}
 
-	if srv.Subject == "" {
+	if srv.subject == "" {
 		return errors.New("nats: Subject can not be empty")
 	}
 
-	if srv.Addr == "" {
+	if srv.addr == "" {
 		return errors.New("nats: Address can not be empty")
 	}
 
-	if srv.Logger == nil {
+	if srv.logger == nil {
 		return errors.New("nats: Logger can not be empty")
 	}
 
-	if srv.ReadTimeout == 0 {
+	if srv.readTimeout == 0 {
 		return errors.New("nats: ReadTimeout can not be empty")
 	}
 
-	timeoutHandler := http.TimeoutHandler(srv.Handler, srv.ReadTimeout, "nats handler  timeout")
+	timeoutHandler := http.TimeoutHandler(srv.handler, srv.readTimeout, "nats handler  timeout")
 
-	srv.Logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": srv.Addr, "subject": srv.Subject})
-	conn, err := NewConnection(srv.Addr)
+	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": srv.addr, "subject": srv.subject})
+	conn, err := NewConnection(srv.addr)
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := srv.serve(conn.Conn, srv.Logger, srv.Subject, timeoutHandler)
+	subscription, err := srv.serve(conn.Conn, srv.logger, srv.subject, timeoutHandler)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
@@ -168,7 +187,7 @@ func (srv *Server) Start() error {
 
 	CleanUp := func() {
 		srv.stop = nil
-		srv.Logger.Info("Nats server is being closed")
+		srv.logger.Info("Nats server is being closed")
 		_ = subscription.Unsubscribe()
 		conn.Conn.Close()
 	}
@@ -180,7 +199,7 @@ func (srv *Server) Start() error {
 		CleanUp()
 	}
 
-	srv.Logger.Info("Nats server is down now")
+	srv.logger.Info("Nats server is down now")
 
 	return nil
 }
@@ -197,6 +216,7 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 
 		go func(enc *oNats.EncodedConn) {
 			defer handlePanic(conn, logger, rpSubject)
+			t1 := time.Now()
 
 			rp := &Response{
 				StatusCode: 200, // internal server error as default
@@ -204,15 +224,38 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 				Headers:    http.Header{},
 			}
 
-			rq, err := requestToHttpRequest(rq)
+			requestID := rq.Headers.Get(XRequestId)
+			if requestID == "" {
+				requestID = RandomString(6)
+			}
+
+			ctx := context.Background()
+
+			// add log
+			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Service": srv.serviceName, XRequestId: requestID})
+			ctx = context.WithValue(ctx, XLoggerId, l)
+
+			// add request id
+			ctx = context.WithValue(ctx, XRequestId, requestID)
+
+			rq, err := requestToHttpRequest(rq, ctx)
 			if err != nil {
 				replyError(enc, logger, err, rpSubject)
 				return
 			}
 
-			handler.ServeHTTP(rp, rq)
+			defer func() {
+				l.Info("Request complete", map[string]interface{}{
+					"method":     rq.Method,
+					"url":        rq.URL,
+					"status":     rp.StatusCode,
+					"elapsed_ms": float64(time.Since(t1).Nanoseconds()) / 1000000.0},
+				)
+			}()
 
+			handler.ServeHTTP(rp, rq)
 			err = enc.Publish(rpSubject, rp)
+
 			if err != nil {
 				logger.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
 			}
@@ -227,9 +270,10 @@ func handlePanic(enc *oNats.EncodedConn, logger logur.Logger, rpSubject string) 
 		var err error
 		err, ok = r.(error)
 		if !ok {
-			err = fmt.Errorf("pkg: %v", r)
+			err = fmt.Errorf("panic : %v", r)
 		}
 		replyError(enc, logger, err, rpSubject)
+		logger.Info("panic recovered")
 	}
 }
 
@@ -246,7 +290,7 @@ func replyError(enc *oNats.EncodedConn, logger logur.Logger, err error, rpSubjec
 	}
 }
 
-func requestToHttpRequest(rq *Request) (*http.Request, error) {
+func requestToHttpRequest(rq *Request, c context.Context) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)
@@ -254,7 +298,7 @@ func requestToHttpRequest(rq *Request) (*http.Request, error) {
 		body = bytes.NewReader([]byte{})
 	}
 
-	request, err := http.NewRequest(rq.Method, rq.URL, body)
+	request, err := http.NewRequestWithContext(c, rq.Method, rq.URL, body)
 	if err != nil {
 		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
 	}

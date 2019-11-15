@@ -60,6 +60,8 @@ func (h *Handler) Post(c *nats.Context, r *nats.Request) *nats.Response {
 }
 
 func (h *Handler) Hello(c *nats.Context, r *nats.Request) *nats.Response {
+	logger := c.Logger()
+	logger.Info("Handler received request id " + c.RequestId())
 	return nats.
 		NewResBuilder().
 		Body([]byte("hello world")).
