@@ -1,7 +1,10 @@
 package nats
 
 import (
+	"encoding/json"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -29,4 +32,18 @@ func (r *Request) RequestParams() map[string][]string {
 
 func (r *Request) RouteParams() map[string]string {
 	return r.routeParams
+}
+
+func (r *Request) HasBody() bool {
+	return nil != r.Body
+}
+
+func (r *Request) BodyJson(v interface{}) error {
+	if !r.HasBody() {
+		return errors.New("body not found")
+	}
+	if err := json.Unmarshal(r.Body, &v); err != nil {
+		return errors.WithMessage(err, "Json Unmarshal error ")
+	}
+	return nil
 }

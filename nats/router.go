@@ -73,6 +73,9 @@ func httpRequestToRequest(r *http.Request) (*Request, error) {
 	}
 
 	defer func() { _ = r.Body.Close() }()
+	if len(body) == 0 {
+		body = nil
+	}
 
 	oRouteParams := chi.RouteContext(r.Context()).URLParams
 	rRouteParams := map[string]string{}

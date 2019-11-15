@@ -40,6 +40,19 @@ func (h *Handler) Put(c *nats.Context, r *nats.Request) *nats.Response {
 }
 
 func (h *Handler) Post(c *nats.Context, r *nats.Request) *nats.Response {
+	var user struct {
+		Name  string
+		Email string
+	}
+	err := r.BodyJson(&user)
+	if err != nil {
+		return nats.
+			NewResBuilder().
+			StatusCode(400).
+			Body([]byte("Invalid json submitted")).
+			Build()
+	}
+
 	return nats.
 		NewResBuilder().
 		Body(r.Body).
