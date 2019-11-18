@@ -16,5 +16,5 @@ func (r *Router) Routes(c nats.Router) {
 	c.Register("GET", "/hello", r.h.Hello)
 	c.Register("GET", "/user/{id}", r.h.Get)
 	c.Register("PUT", "/user/{id}", r.h.Put)
-	c.Register("POST", "/user/{id}", r.h.Post)
+	c.RegisterJson("POST", "/user/{id}", r.h.Post)
 }
