@@ -1,0 +1,20 @@
+image: golang:1.13-alpine
+
+variables:
+  REPO: gitlab.com
+  GROUP: silenteer
+  PROJECT: go-nats
+
+stages:
+  - test
+
+before_script:
+  - mkdir -p $GOPATH/src/$REPO/$GROUP $GOPATH/src/_/builds
+  - cp -r $CI_PROJECT_DIR $GOPATH/src/$REPO/$GROUP/$PROJECT
+  - ln -s $GOPATH/src/$REPO/$GROUP $GOPATH/src/_/builds/$GROUP
+  - go get -v -d ./...
+
+unit_tests:
+  stage: test
+  script:
+    - go test -v ./... -coverprofile .testCoverage.txt
