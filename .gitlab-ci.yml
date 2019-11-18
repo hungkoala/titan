@@ -19,4 +19,5 @@ unit_tests:
   script:
     - pwd
     - ls -la
+    - go version
     - go test -v ./... -coverprofile .testCoverage.txt
