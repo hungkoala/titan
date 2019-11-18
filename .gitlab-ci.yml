@@ -17,4 +17,6 @@ before_script:
 unit_tests:
   stage: test
   script:
+    - pwd
+    - ls -la
     - go test -v ./... -coverprofile .testCoverage.txt
