@@ -20,4 +20,5 @@ unit_tests:
     - pwd
     - ls -la
     - go version
+    - docker info
     - go test -v ./... -coverprofile .testCoverage.txt
