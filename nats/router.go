@@ -135,32 +135,49 @@ func argInfo(cb interface{}) (reflect.Type, int) {
 var emptyMsgType = reflect.TypeOf(&Request{})
 
 func handleJsonRequest(c *Context, r *http.Request, cb interface{}) *Response {
+	logger := c.Logger()
+
 	builder := NewResBuilder()
 
 	//1. body to json
 	body, err := extractJsonBody(r)
 	if err != nil {
+		logger.Error(fmt.Sprintf("Body parsing error: %+v\n ", err))
 		return builder.
 			StatusCode(400).
-			Body([]byte(fmt.Sprintf("Body parsing error: %+v\n ", err))).
+			BodyJSON(&DefaultJsonError{
+				Message: "Body parsing error:" + err.Error(),
+				TraceId: c.RequestId(),
+				Links:   map[string][]string{"self": {r.URL.String()}},
+			}).
 			Build()
 	}
 
 	//2. call function handler
 	ret, err := callJsonHandler(c, body, cb)
 	if err != nil {
+		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 		return builder.
 			StatusCode(500).
-			Body([]byte(fmt.Sprintf("Json handler eror: %+v\n ", err))).
+			BodyJSON(&DefaultJsonError{
+				Message: "Json handler error:" + err.Error(),
+				TraceId: c.RequestId(),
+				Links:   map[string][]string{"self": {r.URL.String()}},
+			}).
 			Build()
 	}
 
 	//3. process result
 	retJson, err := json.Marshal(ret)
 	if err != nil {
+		logger.Error(fmt.Sprintf("response json encoding error: %+v\n ", err))
 		return builder.
 			StatusCode(500).
-			Body([]byte(fmt.Sprintf("reponse json encoding error: %+v\n ", err))).
+			BodyJSON(&DefaultJsonError{
+				Message: "response json encoding error:" + err.Error(),
+				TraceId: c.RequestId(),
+				Links:   map[string][]string{"self": {r.URL.String()}},
+			}).
 			Build()
 	}
 	return builder.
