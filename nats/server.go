@@ -78,6 +78,13 @@ func RouterProvider(r RouteProvider) Option {
 	}
 }
 
+func Routes(r func(r Router)) Option {
+	return func(o *Options) error {
+		r(o.router)
+		return nil
+	}
+}
+
 func ReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) error {
 		o.ReadTimeout = timeout
@@ -118,7 +125,7 @@ func NewServer(options ...Option) (*Server, error) {
 	}, nil
 }
 
-func NewServerAndStart(options ...Option) {
+func NewServerAndStart(options ...Option) *Server {
 	server, err := NewServer(options...)
 	logger := log.DefaultLogger(nil)
 	if err != nil {
@@ -131,6 +138,27 @@ func NewServerAndStart(options ...Option) {
 		logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
 		os.Exit(1)
 	}
+
+	return server
+}
+
+func NewServerAndStartRoutine(options ...Option) *Server {
+	server, err := NewServer(options...)
+	logger := log.DefaultLogger(nil)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+		os.Exit(1)
+	}
+
+	// start routine
+	go func() {
+		err = server.Start()
+		if err != nil {
+			logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
+			os.Exit(1)
+		}
+	}()
+	return server
 }
 
 type Server struct {

@@ -17,8 +17,6 @@ import (
 
 type HandlerFunc func(*Context, *Request) *Response
 
-//type HandlerJsonFunc func(*Context, interface{}) (interface{}, error)
-
 type RouteProvider interface {
 	Routes(r Router) // side effect function
 }
@@ -220,7 +218,6 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 	var oV []reflect.Value
 	var oPtr reflect.Value
 	if wantsRaw {
-		fmt.Println("Want raw.....")
 		oPtr = reflect.ValueOf(body)
 	} else {
 		if argType.Kind() != reflect.Ptr {

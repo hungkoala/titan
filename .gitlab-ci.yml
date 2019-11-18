@@ -30,5 +30,8 @@ unit_tests:
     - pwd
     - ls -la
     - go version
-#    - go test -v ./... -coverprofile .testCoverage.txt
+    - echo "Start NATS server"
+    - wget "https://github.com/nats-io/nats-server/releases/download/v2.1.0/nats-server-v2.1.0-linux-amd64.zip"
+    - unzip nats-server-v2.1.0-linux-amd64.zip
+    - ./nats-server-v2.1.0-linux-amd64/nats-server
     - make test

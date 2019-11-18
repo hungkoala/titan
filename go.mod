@@ -10,7 +10,7 @@ require (
 	github.com/nats-io/nats.go v1.8.1
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/stretchr/testify v1.3.0
 	golang.org/x/net v0.0.0-20190522155817-f3200d17e092 // indirect
 	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
 	logur.dev/adapter/logrus v0.2.0
