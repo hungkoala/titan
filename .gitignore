@@ -1,4 +1,5 @@
 .DS_Store
 .gradle
 .idea/
-
+.coverage.txt
+runner.sh
