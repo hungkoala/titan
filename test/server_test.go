@@ -17,8 +17,7 @@ type GetResult struct {
 }
 
 func TestGetRequest(t *testing.T) {
-	// setup server
-
+	//1. setup server
 	server := nats.NewServerAndStartRoutine(
 		nats.Subject("test"),
 		nats.Routes(func(r nats.Router) {
@@ -36,8 +35,8 @@ func TestGetRequest(t *testing.T) {
 	)
 
 	defer server.Stop()
-	// client request it
 
+	//2. client request it
 	request, _ := nats.NewReqBuilder().
 		Get("/api/test/get/10002?from=10&to=90").
 		Subject("test").
@@ -53,6 +52,7 @@ func TestGetRequest(t *testing.T) {
 	if err != nil {
 		t.Errorf("json Unmarshal error  = %v", err)
 	}
+	//3. assert it
 	assert.NotEmpty(t, result.RequestId, "RequestId not found")
 	assert.Equal(t, result.PathParams["id"], "10002")
 	assert.Equal(t, result.QueryParams["from"][0], "10")

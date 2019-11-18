@@ -21,7 +21,7 @@ before_script:
   - ln -s $GOPATH/src/$REPO/$GROUP $GOPATH/src/_/builds/$GROUP
   - go get -v -d ./...
 
-unit_tests:
+test:
   image: golang:1.13-alpine
   stage: test
   before_script:
@@ -33,5 +33,5 @@ unit_tests:
     - echo "Start NATS server"
     - wget "https://github.com/nats-io/nats-server/releases/download/v2.1.0/nats-server-v2.1.0-linux-amd64.zip"
     - unzip nats-server-v2.1.0-linux-amd64.zip
-    - ./nats-server-v2.1.0-linux-amd64/nats-server
+    - ./nats-server-v2.1.0-linux-amd64/nats-server &
     - make test
