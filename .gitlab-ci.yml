@@ -1,12 +1,25 @@
-image: golang:1.13-alpine
+
+image: docker:stable
+
+services:
+  - docker:dind
+
+
 
 variables:
   REPO: gitlab.com
   GROUP: silenteer
   PROJECT: go-nats
 
+  DOCKER_DRIVER: overlay2
+  GO111MODULE: "on"
+  CGO_ENABLED: 0
+  GOOS: linux
+  GOARCH: amd64
+
 stages:
   - test
+  - build
 
 before_script:
   - mkdir -p $GOPATH/src/$REPO/$GROUP $GOPATH/src/_/builds
@@ -15,11 +28,22 @@ before_script:
   - go get -v -d ./...
 
 unit_tests:
+  image: golang:1.13-alpine
   stage: test
-  tags:
-    - docker
+  before_script:
+    - apk --no-cache add git make
   script:
     - pwd
     - ls -la
     - go version
     - go test -v ./... -coverprofile .testCoverage.txt
+
+build:
+  stage: build
+  before_script:
+    - apk --no-cache add make
+    - docker info
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.mohmann.de
+  script:
+#    - make image REGISTRY=registry.mohmann.de IMAGE_TAG=$CI_COMMIT_SHA
+    - echo "build me"
