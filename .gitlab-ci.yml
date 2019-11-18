@@ -1,10 +1,5 @@
 
-image: docker:stable
-
-services:
-  - docker:dind
-
-
+image: golang:1.13-alpine
 
 variables:
   REPO: gitlab.com
@@ -19,7 +14,6 @@ variables:
 
 stages:
   - test
-  - build
 
 before_script:
   - mkdir -p $GOPATH/src/$REPO/$GROUP $GOPATH/src/_/builds
@@ -38,12 +32,3 @@ unit_tests:
     - go version
     - go test -v ./... -coverprofile .testCoverage.txt
 
-build:
-  stage: build
-  before_script:
-    - apk --no-cache add make
-    - docker info
-#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.mohmann.de
-  script:
-#    - make image REGISTRY=registry.mohmann.de IMAGE_TAG=$CI_COMMIT_SHA
-    - echo "build me"
