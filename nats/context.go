@@ -70,6 +70,10 @@ func (c *Context) PathParams() PathParams {
 	return pathParams
 }
 
+func (c *Context) GetPathParam(name string) string {
+	return c.PathParams()[name]
+}
+
 func ParsePathParams(ctx context.Context) PathParams {
 	oParams := chi.RouteContext(ctx).URLParams
 	rParams := PathParams{}

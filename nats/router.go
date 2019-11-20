@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Handler interface{}
 type HandlerFunc func(*Context, *Request) *Response
 
 type RouteProvider interface {
@@ -24,7 +25,7 @@ type RouteProvider interface {
 type Router interface {
 	http.Handler
 	Register(method, pattern string, h HandlerFunc)
-	RegisterJson(method, pattern string, h interface{})
+	RegisterJson(method, pattern string, h Handler)
 }
 
 type Mux struct {
@@ -61,12 +62,12 @@ func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 	})
 }
 
-func (m *Mux) RegisterJson(method, pattern string, handlerFunc interface{}) {
+func (m *Mux) RegisterJson(method, pattern string, h Handler) {
 	m.Router.MethodFunc(method, pattern, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
-		rp := handleJsonRequest(NewContext(ctx), r, handlerFunc)
+		rp := handleJsonRequest(NewContext(ctx), r, h)
 		err := writeResponse(w, rp)
 		if err != nil {
 			m.Logger.Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
@@ -117,22 +118,7 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 	return nil
 }
 
-// Dissect the cb Handler's signature
-func argInfo(cb interface{}) (reflect.Type, int) {
-	cbType := reflect.TypeOf(cb)
-	if cbType.Kind() != reflect.Func {
-		panic("nats: Handler needs to be a func")
-	}
-	numArgs := cbType.NumIn()
-	if numArgs == 0 {
-		return nil, numArgs
-	}
-	return cbType.In(numArgs - 1), numArgs
-}
-
-var emptyMsgType = reflect.TypeOf(&Request{})
-
-func handleJsonRequest(c *Context, r *http.Request, cb interface{}) *Response {
+func handleJsonRequest(c *Context, r *http.Request, cb Handler) *Response {
 	logger := c.Logger()
 
 	builder := NewResBuilder()
@@ -165,6 +151,12 @@ func handleJsonRequest(c *Context, r *http.Request, cb interface{}) *Response {
 			Build()
 	}
 
+	if ret == nil {
+		return builder.
+			StatusCode(200).
+			Build()
+	}
+
 	//3. process result
 	retJson, err := json.Marshal(ret)
 	if err != nil {
@@ -186,64 +178,95 @@ func handleJsonRequest(c *Context, r *http.Request, cb interface{}) *Response {
 func extractJsonBody(r *http.Request) ([]byte, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, errors.WithMessage(err, "Body reading error:")
+		return []byte{}, nil
 	}
-
 	defer func() { _ = r.Body.Close() }()
-	if len(body) == 0 {
-		return nil, errors.New("Body is empty error")
-	}
 	return body, nil
 }
 
+var emptyResType = reflect.TypeOf(&Request{})
+var emptyContextType = reflect.TypeOf(&Context{})
+var errorType = reflect.TypeOf((*error)(nil)).Elem()
+var handlerFormatError = errors.New("Handler needs to be a func \n `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`")
+var handlerExample = "\n Example: `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`"
+
 func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, error) {
 	if cb == nil {
-		return nil, errors.New("nats: Handler required for EncodedConn Subscription")
+		return nil, errors.New("nats: Handler is required")
+	}
+	cbType := reflect.TypeOf(cb)
+
+	if cbType.Kind() != reflect.Func {
+		return nil, handlerFormatError
 	}
 
-	argType, numArgs := argInfo(cb)
+	numIn := cbType.NumIn()
+	numOut := cbType.NumOut()
 
-	if numArgs != 2 {
-		return nil, errors.New("nats: Handler requires 2 arguments")
+	if numIn == 0 || numIn > 2 {
+		return nil, errors.New("Handler requires one or two parameters " + handlerExample)
 	}
+
+	if cbType.In(0) != emptyContextType {
+		return nil, errors.New("Handler requires first parameter must be instance of nats.Context " + handlerExample)
+	}
+
+	if numOut == 0 || numOut > 2 {
+		return nil, errors.New("Handler requires one or two return values " + handlerExample)
+	}
+
+	if cbType.Out(numOut-1) != errorType {
+		return nil, errors.New("Handler requires second return value is an `error` " + handlerExample)
+	}
+
+	argType := cbType.In(numIn - 1)
 
 	if argType == nil {
 		return nil, errors.New("nats: Handler requires at least one argument")
 	}
 
 	cbValue := reflect.ValueOf(cb)
+	oV := []reflect.Value{reflect.ValueOf(c)}
 
-	wantsRaw := argType == emptyMsgType
-
-	var oV []reflect.Value
-	var oPtr reflect.Value
-	if wantsRaw {
-		oPtr = reflect.ValueOf(body)
-	} else {
-		if argType.Kind() != reflect.Ptr {
-			oPtr = reflect.New(argType)
+	if numIn == 2 {
+		if len(body) == 0 {
+			return nil, errors.New("Body is empty")
+		}
+		var oPtr reflect.Value
+		if argType == emptyResType {
+			oPtr = reflect.ValueOf(body)
 		} else {
-			oPtr = reflect.New(argType.Elem())
+			if argType.Kind() != reflect.Ptr {
+				oPtr = reflect.New(argType)
+			} else {
+				oPtr = reflect.New(argType.Elem())
+			}
+			if err := decode(body, oPtr.Interface()); err != nil {
+				return nil, err
+			}
+			if argType.Kind() != reflect.Ptr {
+				oPtr = reflect.Indirect(oPtr)
+			}
 		}
-		if err := decode(body, oPtr.Interface()); err != nil {
-			return nil, err
-		}
-		if argType.Kind() != reflect.Ptr {
-			oPtr = reflect.Indirect(oPtr)
-		}
+		oV = append(oV, oPtr)
 	}
-
-	cV := reflect.ValueOf(c)
-	oV = []reflect.Value{cV, oPtr}
 
 	res := cbValue.Call(oV)
-	ret := res[0].Interface()
-	var err error
-	if v := res[1].Interface(); v != nil {
-		err = v.(error)
-	}
 
-	return ret, err
+	if numOut == 2 {
+		ret := res[0].Interface()
+		var err error
+		if v := res[1].Interface(); v != nil {
+			err = v.(error)
+		}
+		return ret, err
+	} else {
+		var err error
+		if v := res[0].Interface(); v != nil {
+			err = v.(error)
+		}
+		return nil, err
+	}
 }
 
 // Decode

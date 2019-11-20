@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -20,6 +21,7 @@ type GetResult struct {
 
 func TestGetRequest(t *testing.T) {
 	//1. setup server
+	context := nats.NewContext(context.Background())
 	server := nats.NewServerAndStartRoutine(
 		nats.Subject("test"),
 		nats.Routes(func(r nats.Router) {
@@ -45,7 +47,7 @@ func TestGetRequest(t *testing.T) {
 		Subject("test").
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).Request(request)
+	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(context, request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -74,6 +76,8 @@ type PostResponse struct {
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
 	topic := nats.RandomString(4)
+	context := nats.NewContext(context.Background())
+
 	//1. setup server
 	server := nats.NewServerAndStartRoutine(
 		nats.Subject(topic),
@@ -99,7 +103,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).Request(request)
+	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(context, request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

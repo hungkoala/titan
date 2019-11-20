@@ -52,7 +52,7 @@ func GetDefaultOptions() Options {
 	return Options{
 		Addr:        oNats.DefaultURL,
 		router:      NewRouter(r),
-		ReadTimeout: 3 * time.Second,
+		ReadTimeout: 15 * time.Second,
 		Logger:      log.DefaultLogger(nil),
 	}
 }
@@ -234,7 +234,7 @@ func (srv *Server) Start() error {
 }
 
 func (srv *Server) Stop() {
-	if srv.stop != nil {
+	if srv != nil && srv.stop != nil {
 		srv.stop <- "stop"
 	}
 }
@@ -248,9 +248,7 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 			t1 := time.Now()
 
 			rp := &Response{
-				StatusCode: 200, // internal server error as default
-				Status:     "",
-				Headers:    http.Header{},
+				Headers: http.Header{},
 			}
 
 			requestID := rq.Headers.Get(XRequestId)
@@ -283,6 +281,7 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 			}()
 
 			handler.ServeHTTP(rp, rq)
+			logger.Debug("write response ", map[string]interface{}{"status": rp.StatusCode})
 			err = enc.Publish(rpSubject, rp)
 
 			if err != nil {

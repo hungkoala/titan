@@ -33,6 +33,10 @@ func (r *ResponseBuilder) SetHeader(key, value string) *ResponseBuilder {
 	return r
 }
 
+func (r *ResponseBuilder) GetHeader(key string) string {
+	return r.headers.Get(key)
+}
+
 func (r *ResponseBuilder) SetContentType(value string) {
 	r.SetHeader(contentType, value)
 }

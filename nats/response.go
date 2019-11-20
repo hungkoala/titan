@@ -28,7 +28,7 @@ func (r *Response) Header() http.Header {
 //Deprecated: please  use response builder instead
 func (r *Response) Write(b []byte) (n int, err error) {
 	r.Body = b
-	r.WriteHeader(http.StatusOK)
+	//r.WriteHeader(http.StatusOK)
 	return len(b), nil
 }
 
