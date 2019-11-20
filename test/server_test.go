@@ -1,7 +1,6 @@
 package test
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -21,8 +20,7 @@ type GetResult struct {
 
 func TestGetRequest(t *testing.T) {
 	//1. setup server
-	context := nats.NewContext(context.Background())
-	server := nats.NewServerAndStartRoutine(
+	server := nats.NewServer(
 		nats.Subject("test"),
 		nats.Routes(func(r nats.Router) {
 			r.Register("GET", "/api/test/get/{id}", func(c *nats.Context, rq *nats.Request) *nats.Response {
@@ -37,6 +35,9 @@ func TestGetRequest(t *testing.T) {
 			})
 		}),
 	)
+
+	go func() { server.Start() }()
+
 	// wait for server ready
 	time.Sleep(1 * time.Millisecond)
 	defer server.Stop()
@@ -47,7 +48,7 @@ func TestGetRequest(t *testing.T) {
 		Subject("test").
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(context, request)
+	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(nats.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -76,10 +77,9 @@ type PostResponse struct {
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
 	topic := nats.RandomString(4)
-	context := nats.NewContext(context.Background())
 
 	//1. setup server
-	server := nats.NewServerAndStartRoutine(
+	server := nats.NewServer(
 		nats.Subject(topic),
 		nats.Routes(func(r nats.Router) {
 			r.RegisterJson("POST", "/api/test/post/{id}", func(c *nats.Context, rq *PostRequest) (*PostResponse, error) {
@@ -90,6 +90,8 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 			})
 		}),
 	)
+
+	go func() { server.Start() }()
 
 	// wait for server ready
 	time.Sleep(1 * time.Millisecond)
@@ -103,7 +105,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(context, request)
+	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(nats.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

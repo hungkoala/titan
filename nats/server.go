@@ -39,14 +39,10 @@ type Options struct {
 	router      Router
 	ReadTimeout time.Duration
 	Logger      logur.Logger
-	ServiceName string
 }
 
 func GetDefaultOptions() Options {
 	r := chi.NewRouter()
-	//r.Use(middleware.RequestID)
-	//r.Use(middleware.Logger)
-	//r.Use(middleware.Recoverer)
 	r.Use(RouteParamsMiddleware)
 
 	return Options{
@@ -99,19 +95,14 @@ func Logger(logger logur.Logger) Option {
 	}
 }
 
-func ServiceName(name string) Option {
-	return func(o *Options) error {
-		o.ServiceName = name
-		return nil
-	}
-}
-
-func NewServer(options ...Option) (*Server, error) {
+func NewServer(options ...Option) *Server {
 	opts := GetDefaultOptions()
+	logger := log.DefaultLogger(nil)
 	for _, opt := range options {
 		if opt != nil {
 			if err := opt(&opts); err != nil {
-				return nil, err
+				logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+				os.Exit(1)
 			}
 		}
 	}
@@ -121,44 +112,15 @@ func NewServer(options ...Option) (*Server, error) {
 		addr:        opts.Addr,
 		readTimeout: opts.ReadTimeout,
 		logger:      opts.Logger,
-		serviceName: opts.ServiceName,
-	}, nil
+	}
 }
 
-func NewServerAndStart(options ...Option) *Server {
-	server, err := NewServer(options...)
-	logger := log.DefaultLogger(nil)
+func (srv *Server) Start() {
+	err := srv.start()
 	if err != nil {
-		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
+		srv.logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
 		os.Exit(1)
 	}
-
-	err = server.Start()
-	if err != nil {
-		logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
-		os.Exit(1)
-	}
-
-	return server
-}
-
-func NewServerAndStartRoutine(options ...Option) *Server {
-	server, err := NewServer(options...)
-	logger := log.DefaultLogger(nil)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
-		os.Exit(1)
-	}
-
-	// start routine
-	go func() {
-		err = server.Start()
-		if err != nil {
-			logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
-			os.Exit(1)
-		}
-	}()
-	return server
 }
 
 type Server struct {
@@ -170,10 +132,9 @@ type Server struct {
 	readTimeout time.Duration
 	logger      logur.Logger
 	stop        chan interface{}
-	serviceName string
 }
 
-func (srv *Server) Start() error {
+func (srv *Server) start() error {
 
 	if srv.handler == nil {
 		return errors.New("nats: Handler not found")
@@ -203,7 +164,7 @@ func (srv *Server) Start() error {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := srv.serve(conn.Conn, srv.logger, srv.subject, timeoutHandler)
+	subscription, err := srv.subscribe(conn.Conn, srv.logger, srv.subject, timeoutHandler)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
@@ -214,21 +175,25 @@ func (srv *Server) Start() error {
 
 	srv.stop = make(chan interface{}, 1)
 
-	CleanUp := func() {
+	cleanUp := func() {
+		close(srv.stop)
 		srv.stop = nil
-		srv.logger.Info("Nats server is being closed")
-		_ = subscription.Unsubscribe()
+		srv.logger.Info("Server is closing")
+		er := subscription.Unsubscribe()
+		srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
 		conn.Conn.Close()
 	}
 
+	srv.logger.Info("Server started")
+
 	select {
 	case <-srv.stop:
-		CleanUp()
+		cleanUp()
 	case <-done:
-		CleanUp()
+		cleanUp()
 	}
 
-	srv.logger.Info("Nats server is down now")
+	srv.logger.Info("Server Stopped")
 
 	return nil
 }
@@ -239,7 +204,7 @@ func (srv *Server) Stop() {
 	}
 }
 
-func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
+func (srv *Server) subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
 	return conn.Subscribe(subject, func(addr string, rpSubject string, rq *Request) {
 		logger.Debug("Nats received message", map[string]interface{}{"url": rq.URL, "subject": subject})
 
@@ -259,7 +224,7 @@ func (srv *Server) serve(conn *oNats.EncodedConn, logger logur.Logger, subject s
 			ctx := context.Background()
 
 			// add log
-			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Service": srv.serviceName, XRequestId: requestID})
+			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Subject": srv.subject, XRequestId: requestID})
 			ctx = context.WithValue(ctx, XLoggerId, l)
 
 			// add request id

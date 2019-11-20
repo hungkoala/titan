@@ -1,4 +1,4 @@
-package app
+package company
 
 import (
 	"errors"
@@ -37,12 +37,12 @@ func (com *CompanyService) GetCompany(ctx *nats.Context) (*Company, error) {
 }
 
 func (com *CompanyService) SaveCompany(ctx *nats.Context, company *Company) (*Company, error) {
-	com.repository.Save(company.Name, Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
+	com.repository.Save(company.Name, company.Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
 	return company, nil
 }
 
 func (com *CompanyService) UpdateCompany(ctx *nats.Context, company *Company) (*Company, error) {
-	com.repository.Save(company.Name, Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
+	com.repository.Save(company.Name, company.Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
 	return company, nil
 }
 

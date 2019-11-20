@@ -18,6 +18,10 @@ type Context struct {
 	context context.Context
 }
 
+func NewBackgroundContext() *Context {
+	return &Context{context: context.Background()}
+}
+
 func NewContext(c context.Context) *Context {
 	return &Context{context: c}
 }

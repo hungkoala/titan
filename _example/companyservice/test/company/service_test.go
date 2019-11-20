@@ -1,4 +1,4 @@
-package test
+package company
 
 import (
 	"context"
@@ -6,22 +6,23 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/silenteer/go-nats/_example/companyservice/api/company"
+
 	"gitlab.com/silenteer/go-nats/_example/companyservice/internal/app"
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/silenteer/go-nats/_example/companyservice/client"
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
 var natsClient = nats.NewClient("nats://127.0.0.1:4222")
-var companyService = client.NewCompanyClient(natsClient)
+var companyService = company.NewCompanyClient(natsClient)
 
 func TestMain(m *testing.M) {
-	var server *nats.Server
+	server := app.NewServer()
 
 	go func() {
-		server = app.NewServerAndStart()
+		server.Start()
 	}()
 
 	time.Sleep(2 * time.Millisecond)

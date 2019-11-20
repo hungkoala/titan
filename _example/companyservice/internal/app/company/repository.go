@@ -1,4 +1,4 @@
-package app
+package company
 
 type Company struct {
 	Name  string `json:"name"`

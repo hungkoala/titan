@@ -1,4 +1,4 @@
-package api
+package company
 
 import (
 	"gitlab.com/silenteer/go-nats/nats"
