@@ -25,11 +25,6 @@ type Request struct {
 	Headers http.Header `json:"headers"`
 	Body    []byte      `json:"body"`
 	URL     string      `json:"url"`
-	Subject string      `json:"subject"`
-
-	// used in server side
-	//requestParams map[string][]string
-	//routeParams   map[string]string
 }
 
 func (r *Request) HasBody() bool {

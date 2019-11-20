@@ -1,8 +1,12 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"log"
+
 	"gitlab.com/silenteer/go-nats/_example/companyservice/internal/app"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var startCmd = &cobra.Command{
@@ -10,7 +14,12 @@ var startCmd = &cobra.Command{
 	Short: "Start server ",
 	Long:  "Start server ", // add example here
 	Run: func(cmd *cobra.Command, args []string) {
-		app.NewServer().Start()
+		var config app.Config
+		err := viper.Unmarshal(&config)
+		if err != nil {
+			log.Fatalf("unable to decode yaml config to struct, %v", err)
+		}
+		app.NewServer(&config).Start()
 	},
 }
 

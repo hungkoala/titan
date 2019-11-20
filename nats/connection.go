@@ -30,11 +30,11 @@ func NewConnection(url string, options ...nats.Option) (*Connection, error) {
 	return &Connection{Conn: enc}, nil
 }
 
-func (srv *Connection) SendRequest(rq *Request) (*Response, error) {
-	if rq.Subject == "" {
+func (srv *Connection) SendRequest(rq *Request, subject string) (*Response, error) {
+	if subject == "" {
 		return nil, errors.New("nats subject cannot be nil")
 	}
 	rp := Response{}
-	err := srv.Conn.Request(rq.Subject, rq, &rp, 3*time.Second)
+	err := srv.Conn.Request(subject, rq, &rp, 3*time.Second)
 	return &rp, err
 }

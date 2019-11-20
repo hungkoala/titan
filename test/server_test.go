@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	oNats "github.com/nats-io/nats.go"
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
@@ -17,6 +16,8 @@ type GetResult struct {
 	QueryParams nats.QueryParams `json:"QueryParams"`
 	PathParams  nats.PathParams  `json:"PathParams"`
 }
+
+var config = nats.DefaultConfig()
 
 func TestGetRequest(t *testing.T) {
 	//1. setup server
@@ -45,10 +46,9 @@ func TestGetRequest(t *testing.T) {
 	//2. client request it
 	request, _ := nats.NewReqBuilder().
 		Get("/api/test/get/10002?from=10&to=90").
-		Subject("test").
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -100,11 +100,10 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
 	request, _ := nats.NewReqBuilder().
 		Post("/api/test/post/1111").
-		Subject("test").
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := nats.NewClient(oNats.DefaultURL).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

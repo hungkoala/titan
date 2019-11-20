@@ -8,7 +8,8 @@ import (
 )
 
 type Client struct {
-	Addr string
+	Addr    string
+	Subject string
 }
 
 func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
@@ -21,7 +22,7 @@ func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
 		c.Conn.Close()
 	}(c)
 
-	return c.SendRequest(rq)
+	return c.SendRequest(rq, srv.Subject)
 }
 
 func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interface{}) error {
@@ -54,6 +55,6 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	return msg, nil
 }
 
-func NewClient(addr string) *Client {
-	return &Client{addr}
+func NewClient(config *Config) *Client {
+	return &Client{config.Servers, config.Subject}
 }

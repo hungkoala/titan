@@ -16,7 +16,6 @@ func NewCompanyClient(natClient *nats.Client) *CompanyClient {
 func (client *CompanyClient) GetCompanies(ctx *nats.Context) (*[]CompanyDto, error) {
 	request, _ := nats.NewReqBuilder().
 		Get("/api/companies").
-		Subject("company_service").
 		Build()
 
 	var result []CompanyDto
@@ -27,7 +26,6 @@ func (client *CompanyClient) GetCompanies(ctx *nats.Context) (*[]CompanyDto, err
 func (client *CompanyClient) GetCompany(ctx *nats.Context, key string) (*CompanyDto, error) {
 	request, _ := nats.NewReqBuilder().
 		Get("/api/companies/" + key).
-		Subject("company_service").
 		Build()
 
 	var result CompanyDto

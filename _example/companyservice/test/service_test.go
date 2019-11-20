@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -15,11 +16,12 @@ import (
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
-var natsClient = nats.NewClient("nats://127.0.0.1:4222")
+var config = app.DefaultConfig()
+var natsClient = nats.NewClient(config.Nats)
 var companyService = api.NewCompanyClient(natsClient)
 
 func TestMain(m *testing.M) {
-	server := app.NewServer()
+	server := app.NewServer(config)
 
 	go func() {
 		server.Start()
@@ -36,6 +38,9 @@ func TestMain(m *testing.M) {
 func TestGetCompanies(t *testing.T) {
 	context := nats.NewContext(context.Background())
 	companies, err := companyService.GetCompanies(context)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("get companies error: %+v\n ", err))
+	}
 
 	assert.Nil(t, err)
 	assert.Equal(t, len(*companies), 1)
@@ -46,6 +51,9 @@ func TestGetNotExistCompany(t *testing.T) {
 	context := nats.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "not_exist")
+	if err != nil {
+		fmt.Println(fmt.Sprintf("get company error: %+v\n ", err))
+	}
 
 	assert.Nil(t, err)
 	assert.Nil(t, company)
@@ -55,6 +63,9 @@ func TestGetExistCompany(t *testing.T) {
 	context := nats.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "hung")
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Get Company error: %+v\n ", err))
+	}
 
 	assert.Nil(t, err)
 	assert.NotNil(t, company)

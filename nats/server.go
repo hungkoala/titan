@@ -45,7 +45,7 @@ func GetDefaultOptions() Options {
 	r.Use(RouteParamsMiddleware)
 
 	return Options{
-		config:      DefaultConfig(),
+		config:      &Config{},
 		router:      NewRouter(r),
 		readTimeout: 15 * time.Second,
 		logger:      log.DefaultLogger(nil),
@@ -130,6 +130,7 @@ func (srv *Server) start() error {
 		return errors.New("nats: Subject can not be empty")
 	}
 
+	fmt.Println()
 	if config.Servers == "" {
 		return errors.New("nats: Address can not be empty")
 	}

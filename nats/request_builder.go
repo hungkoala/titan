@@ -18,8 +18,7 @@ type RequestBuilder struct {
 	bodyProvider BodyProvider
 
 	// raw url string for requests
-	rawURL  string
-	subject string
+	rawURL string
 }
 
 // New returns a new default  Request.
@@ -153,11 +152,6 @@ func (r *RequestBuilder) AddHeaders(header http.Header) *RequestBuilder {
 	return r
 }
 
-func (r *RequestBuilder) Subject(subject string) *RequestBuilder {
-	r.subject = subject
-	return r
-}
-
 func (r *RequestBuilder) Build() (*Request, error) {
 	_, err := url.Parse(r.rawURL)
 	if err != nil {
@@ -170,5 +164,5 @@ func (r *RequestBuilder) Build() (*Request, error) {
 			return nil, errors.WithMessage(err, "Invalid body format ")
 		}
 	}
-	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body, Subject: r.subject}, nil
+	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body}, nil
 }

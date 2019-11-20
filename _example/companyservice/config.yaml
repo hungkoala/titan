@@ -4,7 +4,7 @@ Logging:
   NoColor: false
 
 Nats:
-  Servers: "nats://localhost:1222, nats://localhost:1223, nats://localhost:1224"
-  Subject: ""
-  Queue: ""
+  Servers: "nats://127.0.0.1:4222, nats://localhost:4222"
+  Subject: "company_service"
+  Queue: "workers"
   ReadTimeout: 5
