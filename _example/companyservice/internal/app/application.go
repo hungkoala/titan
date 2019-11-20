@@ -5,8 +5,8 @@ import (
 	"gitlab.com/silenteer/go-nats/nats"
 )
 
-func NewServer() *nats.Server {
-	logger := log.DefaultLogger(nil)
+func NewServer(logCon *log.Config, natsCon *nats.Config) *nats.Server {
+	logger := log.NewLogger(logCon)
 	companyRepository := NewCompanyRepository()
 	companyService := NewCompanyService(companyRepository)
 

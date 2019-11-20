@@ -18,10 +18,6 @@ import (
 type Handler interface{}
 type HandlerFunc func(*Context, *Request) *Response
 
-type RouteProvider interface {
-	Routes(r Router) // side effect function
-}
-
 type Router interface {
 	http.Handler
 	Register(method, pattern string, h HandlerFunc)

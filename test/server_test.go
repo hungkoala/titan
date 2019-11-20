@@ -21,7 +21,7 @@ type GetResult struct {
 func TestGetRequest(t *testing.T) {
 	//1. setup server
 	server := nats.NewServer(
-		nats.Subject("test"),
+		nats.SetConfig(nats.DefaultConfig()),
 		nats.Routes(func(r nats.Router) {
 			r.Register("GET", "/api/test/get/{id}", func(c *nats.Context, rq *nats.Request) *nats.Response {
 				return nats.
@@ -76,11 +76,10 @@ type PostResponse struct {
 }
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
-	topic := nats.RandomString(4)
 
 	//1. setup server
 	server := nats.NewServer(
-		nats.Subject(topic),
+		nats.SetConfig(nats.DefaultConfig()),
 		nats.Routes(func(r nats.Router) {
 			r.RegisterJson("POST", "/api/test/post/{id}", func(c *nats.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
@@ -101,7 +100,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
 	request, _ := nats.NewReqBuilder().
 		Post("/api/test/post/1111").
-		Subject(topic).
+		Subject("test").
 		BodyJSON(potsRequest).
 		Build()
 

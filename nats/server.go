@@ -34,11 +34,10 @@ type Option func(*Options) error
 
 // Options can be used to create a customized connection.
 type Options struct {
-	Addr        string // TCP address to listen on, ":http" if empty
-	Subject     string
+	config      *Config
 	router      Router
-	ReadTimeout time.Duration
-	Logger      logur.Logger
+	readTimeout time.Duration
+	logger      logur.Logger
 }
 
 func GetDefaultOptions() Options {
@@ -46,30 +45,16 @@ func GetDefaultOptions() Options {
 	r.Use(RouteParamsMiddleware)
 
 	return Options{
-		Addr:        oNats.DefaultURL,
+		config:      DefaultConfig(),
 		router:      NewRouter(r),
-		ReadTimeout: 15 * time.Second,
-		Logger:      log.DefaultLogger(nil),
+		readTimeout: 15 * time.Second,
+		logger:      log.DefaultLogger(nil),
 	}
 }
 
-func Subject(subject string) Option {
+func SetConfig(config *Config) Option {
 	return func(o *Options) error {
-		o.Subject = subject
-		return nil
-	}
-}
-
-func Address(address string) Option {
-	return func(o *Options) error {
-		o.Addr = address
-		return nil
-	}
-}
-
-func RouterProvider(r RouteProvider) Option {
-	return func(o *Options) error {
-		r.Routes(o.router)
+		o.config = config
 		return nil
 	}
 }
@@ -83,14 +68,14 @@ func Routes(r func(r Router)) Option {
 
 func ReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) error {
-		o.ReadTimeout = timeout
+		o.readTimeout = timeout
 		return nil
 	}
 }
 
 func Logger(logger logur.Logger) Option {
 	return func(o *Options) error {
-		o.Logger = logger
+		o.logger = logger
 		return nil
 	}
 }
@@ -107,11 +92,10 @@ func NewServer(options ...Option) *Server {
 		}
 	}
 	return &Server{
-		subject:     opts.Subject,
+		config:      opts.config,
 		handler:     opts.router,
-		addr:        opts.Addr,
-		readTimeout: opts.ReadTimeout,
-		logger:      opts.Logger,
+		readTimeout: opts.readTimeout,
+		logger:      opts.logger,
 	}
 }
 
@@ -124,11 +108,8 @@ func (srv *Server) Start() {
 }
 
 type Server struct {
-	addr    string // TCP address to listen on, ":http" if empty
-	subject string
-
-	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
-
+	config      *Config
+	handler     http.Handler // handler to invoke, http.DefaultServeMux if nil
 	readTimeout time.Duration
 	logger      logur.Logger
 	stop        chan interface{}
@@ -140,11 +121,16 @@ func (srv *Server) start() error {
 		return errors.New("nats: Handler not found")
 	}
 
-	if srv.subject == "" {
+	config := srv.config
+	if config == nil {
+		return errors.New("nats: Config can not be nil")
+	}
+
+	if config.Subject == "" {
 		return errors.New("nats: Subject can not be empty")
 	}
 
-	if srv.addr == "" {
+	if config.Servers == "" {
 		return errors.New("nats: Address can not be empty")
 	}
 
@@ -158,13 +144,13 @@ func (srv *Server) start() error {
 
 	timeoutHandler := http.TimeoutHandler(srv.handler, srv.readTimeout, "nats handler  timeout")
 
-	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": srv.addr, "subject": srv.subject})
-	conn, err := NewConnection(srv.addr)
+	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers, "subject": config.Subject})
+	conn, err := NewConnection(config.Servers)
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := srv.subscribe(conn.Conn, srv.logger, srv.subject, timeoutHandler)
+	subscription, err := subscribe(conn.Conn, srv.logger, config.Subject, config.Queue, timeoutHandler)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
@@ -206,8 +192,8 @@ func (srv *Server) Stop() {
 	}
 }
 
-func (srv *Server) subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, handler http.Handler) (*oNats.Subscription, error) {
-	return conn.Subscribe(subject, func(addr string, rpSubject string, rq *Request) {
+func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*oNats.Subscription, error) {
+	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
 		logger.Debug("Nats received message", map[string]interface{}{"url": rq.URL, "subject": subject})
 
 		go func(enc *oNats.EncodedConn) {
@@ -226,7 +212,7 @@ func (srv *Server) subscribe(conn *oNats.EncodedConn, logger logur.Logger, subje
 			ctx := context.Background()
 
 			// add log
-			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Subject": srv.subject, XRequestId: requestID})
+			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Subject": subject, "Queue": queue, XRequestId: requestID})
 			ctx = context.WithValue(ctx, XLoggerId, l)
 
 			// add request id

@@ -2,14 +2,15 @@
 package log
 
 import (
+	"os"
+
 	"github.com/sirupsen/logrus"
 	logrusadapter "logur.dev/adapter/logrus"
 	"logur.dev/logur"
-	"os"
 )
 
 // NewLogger creates a new logger.
-func NewLogger(config Config) logur.Logger {
+func NewLogger(config *Config) logur.Logger {
 	logger := logrus.New()
 
 	logger.SetOutput(os.Stdout)
@@ -39,15 +40,9 @@ func WithFields(logger logur.Logger, fields map[string]interface{}) logur.Logger
 }
 
 func DefaultLogger(withFields map[string]interface{}) logur.Logger {
-	config := Config{
-		Format:  "logfmt",
-		Level:   "debug",
-		NoColor: false,
-	}
+	logger := NewLogger(DefaultConfig())
 
-	logger := NewLogger(config)
-
-	if withFields != nil && len(withFields) > 0 {
+	if len(withFields) > 0 {
 		logger = WithFields(logger, withFields)
 	}
 	return logger

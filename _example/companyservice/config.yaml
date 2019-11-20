@@ -1,0 +1,10 @@
+Logging:
+  Format: "logfmt"
+  Level: "debug"
+  NoColor: false
+
+Nats:
+  Servers: "nats://localhost:1222, nats://localhost:1223, nats://localhost:1224"
+  Subject: ""
+  Queue: ""
+  ReadTimeout: 5
