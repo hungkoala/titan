@@ -1,4 +1,4 @@
-package company
+package api
 
 import (
 	"github.com/pkg/errors"

@@ -180,7 +180,9 @@ func (srv *Server) start() error {
 		srv.stop = nil
 		srv.logger.Info("Server is closing")
 		er := subscription.Unsubscribe()
-		srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
+		if er != nil {
+			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
+		}
 		conn.Conn.Close()
 	}
 
