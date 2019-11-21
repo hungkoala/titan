@@ -1,4 +1,3 @@
-
 image: golang:1.13-alpine
 
 variables:
