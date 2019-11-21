@@ -3,29 +3,28 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.com/silenteer/titan"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"gitlab.com/silenteer/titan/nats"
 )
 
 type GetResult struct {
-	RequestId   string           `json:"RequestId"`
-	QueryParams nats.QueryParams `json:"QueryParams"`
-	PathParams  nats.PathParams  `json:"PathParams"`
+	RequestId   string            `json:"RequestId"`
+	QueryParams titan.QueryParams `json:"QueryParams"`
+	PathParams  titan.PathParams  `json:"PathParams"`
 }
 
-var config = nats.DefaultConfig()
+var config = titan.DefaultConfig()
 
 func TestGetRequest(t *testing.T) {
 	//1. setup server
-	server := nats.NewServer(
-		nats.SetConfig(nats.DefaultConfig()),
-		nats.Routes(func(r nats.Router) {
-			r.Register("GET", "/api/test/get/{id}", func(c *nats.Context, rq *nats.Request) *nats.Response {
-				return nats.
+	server := titan.NewServer(
+		titan.SetConfig(titan.DefaultConfig()),
+		titan.Routes(func(r titan.Router) {
+			r.Register("GET", "/api/test/get/{id}", func(c titan.Context, rq titan.Request) titan.Response {
+				return titan.
 					NewResBuilder().
 					BodyJSON(&GetResult{
 						c.RequestId(),
@@ -44,11 +43,11 @@ func TestGetRequest(t *testing.T) {
 	defer server.Stop()
 
 	//2. client request it
-	request, _ := nats.NewReqBuilder().
+	request, _ := titan.NewReqBuilder().
 		Get("/api/test/get/10002?from=10&to=90").
 		Build()
 
-	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := titan.NewClient(config).SendRequest(titan.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -78,10 +77,10 @@ type PostResponse struct {
 func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	//1. setup server
-	server := nats.NewServer(
-		nats.SetConfig(nats.DefaultConfig()),
-		nats.Routes(func(r nats.Router) {
-			r.RegisterJson("POST", "/api/test/post/{id}", func(c *nats.Context, rq *PostRequest) (*PostResponse, error) {
+	server := titan.NewServer(
+		titan.SetConfig(titan.DefaultConfig()),
+		titan.Routes(func(r titan.Router) {
+			r.RegisterJson("POST", "/api/test/post/{id}", func(c titan.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
 					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
@@ -98,12 +97,12 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	//2. client request it
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
-	request, _ := nats.NewReqBuilder().
+	request, _ := titan.NewReqBuilder().
 		Post("/api/test/post/1111").
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := titan.NewClient(config).SendRequest(titan.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

@@ -1,4 +1,4 @@
-package nats
+package titan
 
 import (
 	"encoding/json"

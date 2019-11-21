@@ -1,4 +1,4 @@
-package nats
+package titan
 
 import (
 	"context"
@@ -204,7 +204,7 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 	}
 
 	if cbType.In(0) != emptyContextType {
-		return nil, errors.New("Handler requires first parameter must be instance of nats.Context " + handlerExample)
+		return nil, errors.New("Handler requires first parameter must be instance of titan.Context " + handlerExample)
 	}
 
 	if numOut == 0 || numOut > 2 {
