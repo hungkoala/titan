@@ -8,24 +8,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/silenteer/titan/nats"
+	"gitlab.com/silenteer/titan/kaka"
 )
 
 type GetResult struct {
 	RequestId   string           `json:"RequestId"`
-	QueryParams nats.QueryParams `json:"QueryParams"`
-	PathParams  nats.PathParams  `json:"PathParams"`
+	QueryParams kaka.QueryParams `json:"QueryParams"`
+	PathParams  kaka.PathParams  `json:"PathParams"`
 }
 
-var config = nats.DefaultConfig()
+var config = kaka.DefaultConfig()
 
 func TestGetRequest(t *testing.T) {
 	//1. setup server
-	server := nats.NewServer(
-		nats.SetConfig(nats.DefaultConfig()),
-		nats.Routes(func(r nats.Router) {
-			r.Register("GET", "/api/test/get/{id}", func(c *nats.Context, rq *nats.Request) *nats.Response {
-				return nats.
+	server := kaka.NewServer(
+		kaka.SetConfig(kaka.DefaultConfig()),
+		kaka.Routes(func(r kaka.Router) {
+			r.Register("GET", "/api/test/get/{id}", func(c *kaka.Context, rq *kaka.Request) *kaka.Response {
+				return kaka.
 					NewResBuilder().
 					BodyJSON(&GetResult{
 						c.RequestId(),
@@ -44,11 +44,11 @@ func TestGetRequest(t *testing.T) {
 	defer server.Stop()
 
 	//2. client request it
-	request, _ := nats.NewReqBuilder().
+	request, _ := kaka.NewReqBuilder().
 		Get("/api/test/get/10002?from=10&to=90").
 		Build()
 
-	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := kaka.NewClient(config).SendRequest(kaka.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -78,10 +78,10 @@ type PostResponse struct {
 func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	//1. setup server
-	server := nats.NewServer(
-		nats.SetConfig(nats.DefaultConfig()),
-		nats.Routes(func(r nats.Router) {
-			r.RegisterJson("POST", "/api/test/post/{id}", func(c *nats.Context, rq *PostRequest) (*PostResponse, error) {
+	server := kaka.NewServer(
+		kaka.SetConfig(kaka.DefaultConfig()),
+		kaka.Routes(func(r kaka.Router) {
+			r.RegisterJson("POST", "/api/test/post/{id}", func(c *kaka.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
 					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
@@ -98,12 +98,12 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	//2. client request it
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
-	request, _ := nats.NewReqBuilder().
+	request, _ := kaka.NewReqBuilder().
 		Post("/api/test/post/1111").
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := nats.NewClient(config).SendRequest(nats.NewBackgroundContext(), request)
+	msg, err := kaka.NewClient(config).SendRequest(kaka.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

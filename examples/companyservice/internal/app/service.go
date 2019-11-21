@@ -3,7 +3,7 @@ package app
 import (
 	"errors"
 
-	"gitlab.com/silenteer/titan/nats"
+	"gitlab.com/silenteer/titan/kaka"
 )
 
 type CompanyService struct {
@@ -14,7 +14,7 @@ func NewCompanyService(repository *CompanyRepository) *CompanyService {
 	return &CompanyService{repository: repository}
 }
 
-func (com *CompanyService) Routes(r nats.Router) {
+func (com *CompanyService) Routes(r kaka.Router) {
 	r.RegisterJson("GET", "/api/companies", com.GetCompanies)
 	r.RegisterJson("POST", "/api/companies", com.SaveCompany)
 	r.RegisterJson("GET", "/api/companies/{name}", com.GetCompany)
@@ -22,11 +22,11 @@ func (com *CompanyService) Routes(r nats.Router) {
 	r.RegisterJson("DELETE", "/api/companies/{name}", com.DeleteCompany)
 }
 
-func (com *CompanyService) GetCompanies(ctx *nats.Context) ([]Company, error) {
+func (com *CompanyService) GetCompanies(ctx *kaka.Context) ([]Company, error) {
 	return com.repository.FindAll(), nil
 }
 
-func (com *CompanyService) GetCompany(ctx *nats.Context) (*Company, error) {
+func (com *CompanyService) GetCompany(ctx *kaka.Context) (*Company, error) {
 	name := ctx.GetPathParam("name")
 	company, ok := com.repository.FindBy(name)
 
@@ -36,17 +36,17 @@ func (com *CompanyService) GetCompany(ctx *nats.Context) (*Company, error) {
 	return &company, nil
 }
 
-func (com *CompanyService) SaveCompany(ctx *nats.Context, company *Company) (*Company, error) {
+func (com *CompanyService) SaveCompany(ctx *kaka.Context, company *Company) (*Company, error) {
 	com.repository.Save(company.Name, Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
 	return company, nil
 }
 
-func (com *CompanyService) UpdateCompany(ctx *nats.Context, company *Company) (*Company, error) {
+func (com *CompanyService) UpdateCompany(ctx *kaka.Context, company *Company) (*Company, error) {
 	com.repository.Save(company.Name, Company{Name: company.Name, Tel: company.Tel, Email: company.Email})
 	return company, nil
 }
 
-func (com *CompanyService) DeleteCompany(ctx *nats.Context) (string, error) {
+func (com *CompanyService) DeleteCompany(ctx *kaka.Context) (string, error) {
 	name := ctx.GetPathParam("name")
 	if name == "" {
 		return "", errors.New("missing name param")

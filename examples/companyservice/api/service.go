@@ -1,7 +1,7 @@
 package api
 
 import (
-	"gitlab.com/silenteer/titan/nats"
+	"gitlab.com/silenteer/titan/kaka"
 )
 
 type CompanyDto struct {
@@ -11,13 +11,13 @@ type CompanyDto struct {
 }
 
 type CompanyService interface {
-	GetCompanies(ctx *nats.Context) (*[]CompanyDto, error)
+	GetCompanies(ctx *kaka.Context) (*[]CompanyDto, error)
 
-	GetCompany(ctx *nats.Context, key string) (*CompanyDto, error)
+	GetCompany(ctx *kaka.Context, key string) (*CompanyDto, error)
 
-	SaveCompany(ctx *nats.Context, company *CompanyDto) (*CompanyDto, error)
+	SaveCompany(ctx *kaka.Context, company *CompanyDto) (*CompanyDto, error)
 
-	UpdateCompany(ctx *nats.Context, company *CompanyDto) (*CompanyDto, error)
+	UpdateCompany(ctx *kaka.Context, company *CompanyDto) (*CompanyDto, error)
 
-	DeleteCompany(ctx *nats.Context, key string) (string, error)
+	DeleteCompany(ctx *kaka.Context, key string) (string, error)
 }
