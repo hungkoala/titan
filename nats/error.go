@@ -1,4 +1,4 @@
-package titan
+package nats
 
 /**
  * A class that can be used to represent JSON errors that complies to Vnd.Error without the content type requirements.
