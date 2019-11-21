@@ -1,8 +1,7 @@
 package titan
 
-import oNats "github.com/nats-io/nats.go"
+import "github.com/nats-io/nats.go"
 
-// Config holds details necessary for logging.
 type Config struct {
 	Servers     string
 	Subject     string
@@ -12,7 +11,7 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		Servers:     oNats.DefaultURL,
+		Servers:     nats.DefaultURL,
 		ReadTimeout: 5, //second
 		Subject:     "test",
 		Queue:       "workers",
