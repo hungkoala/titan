@@ -1,18 +1,18 @@
 package app
 
 import (
-	"gitlab.com/silenteer/titan"
 	"gitlab.com/silenteer/titan/log"
+	"gitlab.com/silenteer/titan/nats"
 )
 
-func NewServer(config *Config) titan.Server {
+func NewServer(config *Config) *nats.Server {
 	logger := log.NewLogger(config.Logging)
 	companyRepository := NewCompanyRepository()
 	companyService := NewCompanyService(companyRepository)
 
-	return titan.NewServer(
-		titan.SetConfig(config.Nats),
-		titan.Routes(companyService.Routes),
-		titan.Logger(logger),
+	return nats.NewServer(
+		nats.SetConfig(config.Nats),
+		nats.Routes(companyService.Routes),
+		nats.Logger(logger),
 	)
 }

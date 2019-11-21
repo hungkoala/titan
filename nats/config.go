@@ -1,4 +1,4 @@
-package titan
+package nats
 
 import oNats "github.com/nats-io/nats.go"
 
