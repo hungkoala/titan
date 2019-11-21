@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"gitlab.com/silenteer/titan"
 	"os"
 	"testing"
 	"time"
@@ -12,12 +13,10 @@ import (
 	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
 
 	"github.com/stretchr/testify/assert"
-
-	"gitlab.com/silenteer/titan/kaka"
 )
 
 var config = app.DefaultConfig()
-var natsClient = kaka.NewClient(config.Nats)
+var natsClient = titan.NewClient(config.Nats)
 var companyService = api.NewCompanyClient(natsClient)
 
 func TestMain(m *testing.M) {
@@ -36,7 +35,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetCompanies(t *testing.T) {
-	context := kaka.NewContext(context.Background())
+	context := titan.NewContext(context.Background())
 	companies, err := companyService.GetCompanies(context)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("get companies error: %+v\n ", err))
@@ -48,7 +47,7 @@ func TestGetCompanies(t *testing.T) {
 }
 
 func TestGetNotExistCompany(t *testing.T) {
-	context := kaka.NewContext(context.Background())
+	context := titan.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "not_exist")
 	if err != nil {
@@ -60,7 +59,7 @@ func TestGetNotExistCompany(t *testing.T) {
 }
 
 func TestGetExistCompany(t *testing.T) {
-	context := kaka.NewContext(context.Background())
+	context := titan.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "hung")
 	if err != nil {

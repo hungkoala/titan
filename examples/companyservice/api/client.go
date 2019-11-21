@@ -2,19 +2,19 @@ package api
 
 import (
 	"github.com/pkg/errors"
-	"gitlab.com/silenteer/titan/kaka"
+	"gitlab.com/silenteer/titan"
 )
 
 type CompanyClient struct {
-	natClient *kaka.Client
+	natClient *titan.Client
 }
 
-func NewCompanyClient(natClient *kaka.Client) *CompanyClient {
+func NewCompanyClient(natClient *titan.Client) *CompanyClient {
 	return &CompanyClient{natClient: natClient}
 }
 
-func (client *CompanyClient) GetCompanies(ctx *kaka.Context) (*[]CompanyDto, error) {
-	request, _ := kaka.NewReqBuilder().
+func (client *CompanyClient) GetCompanies(ctx *titan.Context) (*[]CompanyDto, error) {
+	request, _ := titan.NewReqBuilder().
 		Get("/api/companies").
 		Build()
 
@@ -23,8 +23,8 @@ func (client *CompanyClient) GetCompanies(ctx *kaka.Context) (*[]CompanyDto, err
 	return &result, err
 }
 
-func (client *CompanyClient) GetCompany(ctx *kaka.Context, key string) (*CompanyDto, error) {
-	request, _ := kaka.NewReqBuilder().
+func (client *CompanyClient) GetCompany(ctx *titan.Context, key string) (*CompanyDto, error) {
+	request, _ := titan.NewReqBuilder().
 		Get("/api/companies/" + key).
 		Build()
 
@@ -36,14 +36,14 @@ func (client *CompanyClient) GetCompany(ctx *kaka.Context, key string) (*Company
 	return &result, err
 }
 
-func (client *CompanyClient) SaveCompany(ctx *kaka.Context, company *CompanyDto) (*CompanyDto, error) {
+func (client *CompanyClient) SaveCompany(ctx *titan.Context, company *CompanyDto) (*CompanyDto, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (client *CompanyClient) UpdateCompany(ctx *kaka.Context, company *CompanyDto) (*CompanyDto, error) {
+func (client *CompanyClient) UpdateCompany(ctx *titan.Context, company *CompanyDto) (*CompanyDto, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (client *CompanyClient) DeleteCompany(ctx *kaka.Context) (string, error) {
+func (client *CompanyClient) DeleteCompany(ctx *titan.Context) (string, error) {
 	return "nil", errors.New("not implemented")
 }

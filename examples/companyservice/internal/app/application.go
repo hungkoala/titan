@@ -1,18 +1,18 @@
 package app
 
 import (
-	"gitlab.com/silenteer/titan/kaka"
+	"gitlab.com/silenteer/titan"
 	"gitlab.com/silenteer/titan/log"
 )
 
-func NewServer(config *Config) *kaka.Server {
+func NewServer(config *Config) *titan.Server {
 	logger := log.NewLogger(config.Logging)
 	companyRepository := NewCompanyRepository()
 	companyService := NewCompanyService(companyRepository)
 
-	return kaka.NewServer(
-		kaka.SetConfig(config.Nats),
-		kaka.Routes(companyService.Routes),
-		kaka.Logger(logger),
+	return titan.NewServer(
+		titan.SetConfig(config.Nats),
+		titan.Routes(companyService.Routes),
+		titan.Logger(logger),
 	)
 }
