@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/silenteer/go-nats/nats"
+	"gitlab.com/silenteer/titan/nats"
 )
 
 type GetResult struct {

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"gitlab.com/silenteer/go-nats/nats"
+	"gitlab.com/silenteer/titan/nats"
 )
 
 type CompanyDto struct {

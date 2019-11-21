@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/silenteer/go-nats/_example/companyservice/api"
+	"gitlab.com/silenteer/titan/examples/companyservice/api"
 
-	"gitlab.com/silenteer/go-nats/_example/companyservice/internal/app"
+	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
 
 	"github.com/stretchr/testify/assert"
 
-	"gitlab.com/silenteer/go-nats/nats"
+	"gitlab.com/silenteer/titan/nats"
 )
 
 var config = app.DefaultConfig()

@@ -3,7 +3,7 @@ package cmd
 import (
 	"log"
 
-	"gitlab.com/silenteer/go-nats/_example/companyservice/internal/app"
+	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

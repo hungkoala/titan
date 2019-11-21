@@ -15,7 +15,7 @@ import (
 
 	oNats "github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
-	"gitlab.com/silenteer/go-nats/log"
+	"gitlab.com/silenteer/titan/log"
 	"logur.dev/logur"
 )
 

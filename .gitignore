@@ -2,4 +2,4 @@
 .gradle
 .idea/
 .coverage.txt
-runner.sh
+

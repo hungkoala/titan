@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi"
 
-	"gitlab.com/silenteer/go-nats/log"
+	"gitlab.com/silenteer/titan/log"
 
 	"logur.dev/logur"
 )

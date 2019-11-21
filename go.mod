@@ -1,4 +1,4 @@
-module gitlab.com/silenteer/go-nats
+module gitlab.com/silenteer/titan
 
 go 1.13
 

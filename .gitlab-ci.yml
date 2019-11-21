@@ -3,7 +3,7 @@ image: golang:1.13-alpine
 variables:
   REPO: gitlab.com
   GROUP: silenteer
-  PROJECT: go-nats
+  PROJECT: titan
 
   DOCKER_DRIVER: overlay2
   GO111MODULE: "on"
@@ -26,9 +26,9 @@ test:
   before_script:
     - apk --no-cache add git make
   script:
-    - pwd
-    - ls -la
-    - go version
+#    - pwd
+#    - ls -la
+#    - go version
     - echo "Start NATS server"
     - wget "https://github.com/nats-io/nats-server/releases/download/v2.1.0/nats-server-v2.1.0-linux-amd64.zip"
     - unzip nats-server-v2.1.0-linux-amd64.zip

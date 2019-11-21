@@ -1,8 +1,8 @@
 package app
 
 import (
-	"gitlab.com/silenteer/go-nats/log"
-	"gitlab.com/silenteer/go-nats/nats"
+	"gitlab.com/silenteer/titan/log"
+	"gitlab.com/silenteer/titan/nats"
 )
 
 func NewServer(config *Config) *nats.Server {
