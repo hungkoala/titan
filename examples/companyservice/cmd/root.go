@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
+	"gitlab.com/silenteer/titan"
 
-	"github.com/spf13/viper"
+	"github.com/spf13/cobra"
 )
 
 var cfgFile string
@@ -30,28 +30,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 }
 
-// initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
-			fmt.Println(fmt.Sprintf("File `%s` does not exist", cfgFile))
-			os.Exit(1)
-		}
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// search config file in current dir
-		viper.AddConfigPath(".")
-		viper.SetConfigName("config")
-	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
-		fmt.Println(fmt.Sprintf("File `%s` does not exist", viper.ConfigFileUsed()))
-		os.Exit(1)
-	}
+	titan.InitViperConfig(cfgFile)
 }

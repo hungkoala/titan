@@ -3,10 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"gitlab.com/silenteer/titan"
 	"os"
 	"testing"
 	"time"
+
+	"gitlab.com/silenteer/titan"
 
 	"gitlab.com/silenteer/titan/examples/companyservice/api"
 
@@ -26,7 +27,7 @@ func TestMain(m *testing.M) {
 		server.Start()
 	}()
 
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(2 * time.Microsecond)
 
 	exitVal := m.Run()
 
