@@ -2,7 +2,6 @@ package titan
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -43,16 +42,34 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 }
 
 func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
-	msg, err := srv.request(ctx, rq)
+	rp, err := srv.request(ctx, rq)
 
 	if err != nil {
-		return nil, errors.WithMessage(err, "nats client error")
+		var rpErr *Response
+		if err.Error() == "nats: timeout" {
+			rpErr = &Response{Status: "Request Timeout", StatusCode: 408}
+		} else {
+			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500}
+		}
+		return nil, &HttpClientResponseError{Message: "Nats Client Request Timeout", Response: rpErr, Cause: err}
 	}
 
-	if msg.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("nats client error, status code %d", msg.StatusCode))
+	if rp.StatusCode >= 400 {
+		return nil, &HttpClientResponseError{Message: rp.Status, Response: rp}
 	}
-	return msg, nil
+
+	if rp.StatusCode >= 300 {
+		return nil, &HttpClientResponseError{Message: "HTTP 3xx Redirection was not implemented yet", Response: rp}
+	}
+
+	if rp.StatusCode >= 200 {
+		return rp, nil
+	}
+
+	if rp.StatusCode < 200 {
+		return rp, &HttpClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
+	}
+	return rp, nil
 }
 
 func NewClient(config *Config) *Client {

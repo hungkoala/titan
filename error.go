@@ -25,3 +25,17 @@ type DefaultJsonError struct {
 	ValidationErrors map[string]string `json:"validationErrors"`
 	ServerError      string            `json:"serverError"`
 }
+
+type HttpClientResponseError struct {
+	Message  string
+	Response *Response
+	Cause    error
+}
+
+func (h *HttpClientResponseError) GetMessage() string {
+	return h.Message
+}
+
+func (h *HttpClientResponseError) Error() string {
+	return h.Message
+}

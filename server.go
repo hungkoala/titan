@@ -59,7 +59,7 @@ func SetConfig(config *Config) Option {
 	}
 }
 
-func Routes(r func(r Router)) Option {
+func Routes(r func(Router)) Option {
 	return func(o *Options) error {
 		r(o.router)
 		return nil
