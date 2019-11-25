@@ -15,7 +15,7 @@ func NewCompanyClient(natClient *titan.Client) *CompanyClient {
 
 func (client *CompanyClient) GetCompanies(ctx *titan.Context) (*[]CompanyDto, error) {
 	request, _ := titan.NewReqBuilder().
-		Get("/api/companies").
+		Get("/api/service/companies").
 		Build()
 
 	var result []CompanyDto
@@ -25,7 +25,7 @@ func (client *CompanyClient) GetCompanies(ctx *titan.Context) (*[]CompanyDto, er
 
 func (client *CompanyClient) GetCompany(ctx *titan.Context, key string) (*CompanyDto, error) {
 	request, _ := titan.NewReqBuilder().
-		Get("/api/companies/" + key).
+		Get("/api/service/companies/" + key).
 		Build()
 
 	var result CompanyDto

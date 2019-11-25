@@ -189,6 +189,11 @@ func (r *RequestBuilder) AddHeaders(header http.Header) *RequestBuilder {
 	return r
 }
 
+func (r *RequestBuilder) SetHeaders(header http.Header) *RequestBuilder {
+	r.headers = header
+	return r
+}
+
 func (r *RequestBuilder) Build() (*Request, error) {
 	_, err := url.Parse(r.rawURL)
 	if err != nil {

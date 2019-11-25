@@ -2,13 +2,13 @@ package titan
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 type Client struct {
-	Addr    string
-	Subject string
+	Addr string
 }
 
 func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
@@ -21,7 +21,8 @@ func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
 		c.Conn.Close()
 	}(c)
 
-	return c.SendRequest(rq, srv.Subject)
+	subject := Url2Subject(rq.URL)
+	return c.SendRequest(rq, subject)
 }
 
 func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interface{}) error {
@@ -73,5 +74,22 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 }
 
 func NewClient(config *Config) *Client {
-	return &Client{config.Servers, config.Subject}
+	return &Client{config.Servers}
+}
+
+func Url2Subject(url string) string {
+	// not found
+	if !strings.Contains(url, "/") {
+		return url
+	}
+	if !strings.HasPrefix(url, "/") {
+		url = "/" + url
+	}
+	s := strings.Split(url, "/")
+	l := 4
+	if len(s)+1 <= 4 {
+		l = len(s)
+	}
+	s1 := s[1:l]
+	return strings.Join(s1, ".")
 }

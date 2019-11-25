@@ -3,9 +3,10 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"gitlab.com/silenteer/titan"
 	"testing"
 	"time"
+
+	"gitlab.com/silenteer/titan"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -23,7 +24,7 @@ func TestGetRequest(t *testing.T) {
 	server := titan.NewServer(
 		titan.SetConfig(titan.DefaultConfig()),
 		titan.Routes(func(r titan.Router) {
-			r.Register("GET", "/api/test/get/{id}", func(c *titan.Context, rq *titan.Request) *titan.Response {
+			r.Register("GET", "/api/service/test/get/{id}", func(c *titan.Context, rq *titan.Request) *titan.Response {
 				return titan.NewResBuilder().
 					BodyJSON(&GetResult{
 						c.RequestId(),
@@ -43,7 +44,7 @@ func TestGetRequest(t *testing.T) {
 
 	//2. client request it
 	request, _ := titan.NewReqBuilder().
-		Get("/api/test/get/10002?from=10&to=90").
+		Get("/api/service/test/get/10002?from=10&to=90").
 		Build()
 
 	msg, err := titan.NewClient(config).SendRequest(titan.NewBackgroundContext(), request)
@@ -79,7 +80,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	server := titan.NewServer(
 		titan.SetConfig(titan.DefaultConfig()),
 		titan.Routes(func(r titan.Router) {
-			r.RegisterJson("POST", "/api/test/post/{id}", func(c *titan.Context, rq *PostRequest) (*PostResponse, error) {
+			r.RegisterJson("POST", "/api/service/test/post/{id}", func(c *titan.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
 					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
@@ -97,7 +98,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	//2. client request it
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
 	request, _ := titan.NewReqBuilder().
-		Post("/api/test/post/1111").
+		Post("/api/service/test/post/1111").
 		BodyJSON(potsRequest).
 		Build()
 

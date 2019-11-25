@@ -19,7 +19,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Servers:     nats.DefaultURL,
 		ReadTimeout: 5, //second
-		Subject:     "test",
+		Subject:     "api.service.test",
 		Queue:       "workers",
 	}
 }

@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
+
+	"gitlab.com/silenteer/titan/log"
+
 	"gitlab.com/silenteer/titan"
 
 	"gitlab.com/silenteer/titan/examples/companyservice/api"
@@ -16,7 +20,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var config = app.DefaultConfig()
+var config = &app.Config{
+	Logging: log.DefaultConfig(),
+	Nats: &titan.Config{
+		Servers:     nats.DefaultURL,
+		ReadTimeout: 5, //second
+		Subject:     "api.service.companies",
+		Queue:       "workers",
+	},
+}
 var natsClient = titan.NewClient(config.Nats)
 var companyService = api.NewCompanyClient(natsClient)
 

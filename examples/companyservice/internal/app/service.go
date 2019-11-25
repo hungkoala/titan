@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+
 	"gitlab.com/silenteer/titan"
 )
 
@@ -14,11 +15,11 @@ func NewCompanyService(repository *CompanyRepository) *CompanyService {
 }
 
 func (com *CompanyService) Routes(r titan.Router) {
-	r.RegisterJson("GET", "/api/companies", com.GetCompanies)
-	r.RegisterJson("POST", "/api/companies", com.SaveCompany)
-	r.RegisterJson("GET", "/api/companies/{name}", com.GetCompany)
-	r.RegisterJson("PUT", "/api/companies/{name}", com.UpdateCompany)
-	r.RegisterJson("DELETE", "/api/companies/{name}", com.DeleteCompany)
+	r.RegisterJson("GET", "/api/service/companies", com.GetCompanies)
+	r.RegisterJson("POST", "/api/service/companies", com.SaveCompany)
+	r.RegisterJson("GET", "/api/service/companies/{name}", com.GetCompany)
+	r.RegisterJson("PUT", "/api/service/companies/{name}", com.UpdateCompany)
+	r.RegisterJson("DELETE", "/api/service/companies/{name}", com.DeleteCompany)
 }
 
 func (com *CompanyService) GetCompanies(ctx *titan.Context) ([]Company, error) {

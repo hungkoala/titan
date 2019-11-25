@@ -5,6 +5,6 @@ Logging:
 
 Nats:
   Servers: "nats://127.0.0.1:4222, nats://localhost:4222"
-  Subject: "company_service"
+  Subject: "api.service.companies"
   Queue: "workers"
   ReadTimeout: 5
