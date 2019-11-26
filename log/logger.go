@@ -38,12 +38,3 @@ func NewLogger(config *Config) logur.Logger {
 func WithFields(logger logur.Logger, fields map[string]interface{}) logur.Logger {
 	return logur.WithFields(logger, fields)
 }
-
-func DefaultLogger(withFields map[string]interface{}) logur.Logger {
-	logger := NewLogger(DefaultConfig())
-
-	if len(withFields) > 0 {
-		logger = WithFields(logger, withFields)
-	}
-	return logger
-}

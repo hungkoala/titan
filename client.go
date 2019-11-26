@@ -2,6 +2,7 @@ package titan
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -22,6 +23,7 @@ func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
 	}(c)
 
 	subject := Url2Subject(rq.URL)
+	fmt.Println("Send request to subject " + subject)
 	return c.SendRequest(rq, subject)
 }
 
@@ -73,7 +75,8 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	return rp, nil
 }
 
-func NewClient(config *Config) *Client {
+func GetDefaultClient() *Client {
+	config := GetNatsConfig()
 	return &Client{config.Servers}
 }
 

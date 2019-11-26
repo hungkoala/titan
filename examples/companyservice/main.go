@@ -1,7 +1,9 @@
 package main
 
-import "gitlab.com/silenteer/titan/examples/companyservice/cmd"
+import (
+	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
+)
 
 func main() {
-	cmd.Execute()
+	app.NewServer().Start()
 }

@@ -17,12 +17,9 @@ type GetResult struct {
 	PathParams  titan.PathParams  `json:"PathParams"`
 }
 
-var config = titan.DefaultConfig()
-
 func TestGetRequest(t *testing.T) {
 	//1. setup server
-	server := titan.NewServer(
-		titan.SetConfig(titan.DefaultConfig()),
+	server := titan.NewServer("api.service.test",
 		titan.Routes(func(r titan.Router) {
 			r.Register("GET", "/api/service/test/get/{id}", func(c *titan.Context, rq *titan.Request) *titan.Response {
 				return titan.NewResBuilder().
@@ -39,7 +36,7 @@ func TestGetRequest(t *testing.T) {
 	go func() { server.Start() }()
 
 	// wait for server ready
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	defer server.Stop()
 
 	//2. client request it
@@ -47,7 +44,7 @@ func TestGetRequest(t *testing.T) {
 		Get("/api/service/test/get/10002?from=10&to=90").
 		Build()
 
-	msg, err := titan.NewClient(config).SendRequest(titan.NewBackgroundContext(), request)
+	msg, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}
@@ -77,8 +74,7 @@ type PostResponse struct {
 func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	//1. setup server
-	server := titan.NewServer(
-		titan.SetConfig(titan.DefaultConfig()),
+	server := titan.NewServer("api.service.test",
 		titan.Routes(func(r titan.Router) {
 			r.RegisterJson("POST", "/api/service/test/post/{id}", func(c *titan.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
@@ -92,7 +88,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	go func() { server.Start() }()
 
 	// wait for server ready
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 	defer server.Stop()
 
 	//2. client request it
@@ -102,7 +98,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		BodyJSON(potsRequest).
 		Build()
 
-	msg, err := titan.NewClient(config).SendRequest(titan.NewBackgroundContext(), request)
+	msg, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
 	if err != nil {
 		t.Errorf("Error = %v", err)
 	}

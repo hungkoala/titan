@@ -4,47 +4,59 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nats-io/nats.go"
+	"logur.dev/logur"
+
+	"gitlab.com/silenteer/titan/log"
+
 	"github.com/spf13/viper"
 )
 
-type Config struct {
+var natConfig NatsConfig
+var logConfig log.Config
+
+func init() {
+	viper.AddConfigPath(".")
+	viper.SetConfigName("config")
+	viper.AutomaticEnv() // read in environment variables that match
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
+
+	// set default value logging
+	viper.SetDefault("Logging.Format", "logfmt")
+	viper.SetDefault("Logging.Level", "debug")
+	viper.SetDefault("Logging.NoColor", "false")
+
+	// nats
+	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
+	viper.SetDefault("Nats.ReadTimeout", 5)
+
+	err := viper.UnmarshalKey("Nats", &natConfig)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
+		os.Exit(1)
+	}
+
+	err = viper.UnmarshalKey("Logging", &logConfig)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Unmarshal logging config error %+v", err))
+	}
+
+}
+
+type NatsConfig struct {
 	Servers     string
-	Subject     string
-	Queue       string
 	ReadTimeout int
 }
 
-func DefaultConfig() *Config {
-	return &Config{
-		Servers:     nats.DefaultURL,
-		ReadTimeout: 5, //second
-		Subject:     "api.service.test",
-		Queue:       "workers",
-	}
+func GetNatsConfig() *NatsConfig {
+	return &natConfig
 }
 
-func InitViperConfig(cfgFile string) {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
-			fmt.Println(fmt.Sprintf("File `%s` does not exist", cfgFile))
-			os.Exit(1)
-		}
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// search config file in current dir
-		viper.AddConfigPath(".")
-		viper.SetConfigName("config")
-	}
+func GetLogConfig() *log.Config {
+	return &logConfig
+}
 
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
-		fmt.Println(fmt.Sprintf("File `%s` does not exist", viper.ConfigFileUsed()))
-		os.Exit(1)
-	}
+func GetLogger() logur.Logger {
+	return log.NewLogger(GetLogConfig())
 }

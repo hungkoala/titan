@@ -6,8 +6,6 @@ import (
 
 	"github.com/go-chi/chi"
 
-	"gitlab.com/silenteer/titan/log"
-
 	"logur.dev/logur"
 )
 
@@ -45,7 +43,7 @@ func (c *Context) Done() <-chan struct{} {
 func (c *Context) Logger() logur.Logger {
 	logger, ok := c.Value(XLoggerId).(logur.Logger)
 	if !ok {
-		logger = log.DefaultLogger(map[string]interface{}{})
+		logger = GetLogger()
 	}
 	return logger
 }

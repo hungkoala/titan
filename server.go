@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,25 +35,19 @@ type Option func(*Options) error
 
 // Options can be used to create a customized connection.
 type Options struct {
-	config      *Config
-	router      Router
-	readTimeout time.Duration
-	logger      logur.Logger
+	queue  string
+	config *NatsConfig
+	router Router
 }
 
-func GetDefaultOptions() Options {
-	r := chi.NewRouter()
-	r.Use(RouteParamsMiddleware)
-
-	return Options{
-		config:      &Config{},
-		router:      NewRouter(r),
-		readTimeout: 15 * time.Second,
-		logger:      log.DefaultLogger(nil),
+func Queue(queue string) Option {
+	return func(o *Options) error {
+		o.queue = queue
+		return nil
 	}
 }
 
-func SetConfig(config *Config) Option {
+func Config(config *NatsConfig) Option {
 	return func(o *Options) error {
 		o.config = config
 		return nil
@@ -66,23 +61,19 @@ func Routes(r func(Router)) Option {
 	}
 }
 
-func ReadTimeout(timeout time.Duration) Option {
-	return func(o *Options) error {
-		o.readTimeout = timeout
-		return nil
-	}
-}
+func NewServer(subject string, options ...Option) *Server {
+	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject, XHostName: hostname})
+	config := GetNatsConfig()
 
-func Logger(logger logur.Logger) Option {
-	return func(o *Options) error {
-		o.logger = logger
-		return nil
-	}
-}
+	r := chi.NewRouter()
+	r.Use(RouteParamsMiddleware)
 
-func NewServer(options ...Option) *Server {
-	opts := GetDefaultOptions()
-	logger := log.DefaultLogger(nil)
+	opts := Options{
+		config: config,
+		router: NewRouter(r),
+		queue:  "",
+	}
+
 	for _, opt := range options {
 		if opt != nil {
 			if err := opt(&opts); err != nil {
@@ -92,10 +83,11 @@ func NewServer(options ...Option) *Server {
 		}
 	}
 	return &Server{
-		config:      opts.config,
-		handler:     opts.router,
-		readTimeout: opts.readTimeout,
-		logger:      opts.logger,
+		subject: subject,
+		queue:   opts.queue,
+		config:  opts.config,
+		handler: opts.router,
+		logger:  log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
 	}
 }
 
@@ -108,11 +100,12 @@ func (srv *Server) Start() {
 }
 
 type Server struct {
-	config      *Config
-	handler     http.Handler // handler to invoke, http.DefaultServeMux if nil
-	readTimeout time.Duration
-	logger      logur.Logger
-	stop        chan interface{}
+	subject string
+	queue   string
+	config  *NatsConfig
+	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
+	logger  logur.Logger
+	stop    chan interface{}
 }
 
 func (srv *Server) start() error {
@@ -123,14 +116,13 @@ func (srv *Server) start() error {
 
 	config := srv.config
 	if config == nil {
-		return errors.New("nats: Config can not be nil")
+		return errors.New("nats: NatsConfig can not be nil")
 	}
 
-	if config.Subject == "" {
+	if srv.subject == "" {
 		return errors.New("nats: Subject can not be empty")
 	}
 
-	fmt.Println()
 	if config.Servers == "" {
 		return errors.New("nats: Address can not be empty")
 	}
@@ -139,19 +131,19 @@ func (srv *Server) start() error {
 		return errors.New("nats: Logger can not be empty")
 	}
 
-	if srv.readTimeout == 0 {
+	if config.ReadTimeout <= 0 {
 		return errors.New("nats: ReadTimeout can not be empty")
 	}
 
-	timeoutHandler := http.TimeoutHandler(srv.handler, srv.readTimeout, "nats handler  timeout")
+	timeoutHandler := http.TimeoutHandler(srv.handler, time.Duration(config.ReadTimeout)*time.Second, "nats handler  timeout")
 
-	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers, "subject": config.Subject})
+	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers})
 	conn, err := NewConnection(config.Servers)
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := subscribe(conn.Conn, srv.logger, config.Subject, config.Queue, timeoutHandler)
+	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
@@ -195,53 +187,63 @@ func (srv *Server) Stop() {
 
 func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*oNats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
-		logger.Debug("Nats received message", map[string]interface{}{"url": rq.URL, "subject": subject})
-
 		go func(enc *oNats.EncodedConn) {
-			defer handlePanic(conn, logger, rpSubject)
-			t1 := time.Now()
+			requestID := rq.Headers.Get(XRequestId)
+			if requestID == "" {
+				requestID = RandomString(6)
+				rq.Headers.Set(XRequestId, requestID)
+			}
+			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
+			go func() {
+				// remove sensitive data, may cause security leak
+				url := rq.URL + ""
+				s := strings.Split(url, "/")
+				l := 5
+				if len(s) < 5 {
+					l = len(s)
+				}
+				s1 := s[1:l]
+				url = strings.Join(s1, "/")
+				logWithId.Debug("Nats received message", map[string]interface{}{"url": url})
+			}()
+
+			defer handlePanic(conn, logWithId, rpSubject)
+			t := time.Now()
 
 			rp := &Response{
 				Headers: http.Header{},
 			}
 
-			requestID := rq.Headers.Get(XRequestId)
-			if requestID == "" {
-				requestID = RandomString(6)
-			}
-
 			ctx := context.Background()
 
 			// add log
-			l := log.WithFields(logger, map[string]interface{}{XHostName: hostname, "Subject": subject, "Queue": queue, XRequestId: requestID})
-			ctx = context.WithValue(ctx, XLoggerId, l)
+
+			ctx = context.WithValue(ctx, XLoggerId, logWithId)
 
 			// add request id
 			ctx = context.WithValue(ctx, XRequestId, requestID)
 
 			rq, err := requestToHttpRequest(rq, ctx)
 			if err != nil {
-				replyError(enc, logger, err, rpSubject)
+				replyError(enc, logWithId, err, rpSubject)
 				return
 			}
 
 			defer func() {
-				l.Info("Request complete", map[string]interface{}{
-					"method":     rq.Method,
-					"url":        rq.URL,
+				logWithId.Info("Request complete", map[string]interface{}{
+					"method": rq.Method,
+					//"url":        rq.URL,
 					"status":     rp.StatusCode,
-					"elapsed_ms": float64(time.Since(t1).Nanoseconds()) / 1000000.0},
+					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 				)
 			}()
 
 			handler.ServeHTTP(rp, rq)
-			logger.Debug("write response ", map[string]interface{}{"status": rp.StatusCode})
 			err = enc.Publish(rpSubject, rp)
 
 			if err != nil {
-				logger.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
+				logWithId.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
 			}
-
 		}(conn)
 	})
 }

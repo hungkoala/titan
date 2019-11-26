@@ -7,10 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
-
-	"gitlab.com/silenteer/titan/log"
-
 	"gitlab.com/silenteer/titan"
 
 	"gitlab.com/silenteer/titan/examples/companyservice/api"
@@ -20,26 +16,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var config = &app.Config{
-	Logging: log.DefaultConfig(),
-	Nats: &titan.Config{
-		Servers:     nats.DefaultURL,
-		ReadTimeout: 5, //second
-		Subject:     "api.service.companies",
-		Queue:       "workers",
-	},
-}
-var natsClient = titan.NewClient(config.Nats)
+var natsClient = titan.GetDefaultClient()
 var companyService = api.NewCompanyClient(natsClient)
 
 func TestMain(m *testing.M) {
-	server := app.NewServer(config)
+	server := app.NewServer()
 
 	go func() {
 		server.Start()
 	}()
 
-	time.Sleep(2 * time.Microsecond)
+	time.Sleep(1 * time.Second)
 
 	exitVal := m.Run()
 

@@ -35,6 +35,6 @@ func (srv *Connection) SendRequest(rq *Request, subject string) (*Response, erro
 		return nil, errors.New("nats subject cannot be nil")
 	}
 	rp := Response{}
-	err := srv.Conn.Request(subject, rq, &rp, 3*time.Second)
+	err := srv.Conn.Request(subject, rq, &rp, 5*time.Second)
 	return &rp, err
 }
