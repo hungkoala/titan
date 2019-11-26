@@ -71,7 +71,7 @@ func NewServer(subject string, options ...Option) *Server {
 	opts := Options{
 		config: config,
 		router: NewRouter(r),
-		queue:  "",
+		queue:  "workers",
 	}
 
 	for _, opt := range options {
