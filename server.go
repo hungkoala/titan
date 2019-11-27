@@ -8,27 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi"
 
-	oNats "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"gitlab.com/silenteer/titan/log"
 	"logur.dev/logur"
 )
-
-var hostname string
-
-func init() {
-	var err error
-	hostname, err = os.Hostname()
-	if hostname == "" || err != nil {
-		hostname = "localhost"
-	}
-}
 
 // Option is a function on the options for a connection.
 type Option func(*Options) error
@@ -62,7 +51,7 @@ func Routes(r func(Router)) Option {
 }
 
 func NewServer(subject string, options ...Option) *Server {
-	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject, XHostName: hostname})
+	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
 	config := GetNatsConfig()
 
 	r := chi.NewRouter()
@@ -138,7 +127,29 @@ func (srv *Server) start() error {
 	timeoutHandler := http.TimeoutHandler(srv.handler, time.Duration(config.ReadTimeout)*time.Second, "nats handler  timeout")
 
 	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers})
-	conn, err := NewConnection(config.Servers)
+	conn, err := NewConnection(
+		config.Servers,
+		nats.Timeout(10*time.Second), // connection timeout
+		nats.Name(hostname+srv.subject),
+		nats.MaxReconnects(-1), // never give up
+		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {
+			if e != nil {
+				srv.logger.Error(fmt.Sprintf("Nats server error %+v", e))
+			}
+		}),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, e error) {
+			if e != nil {
+				srv.logger.Error(fmt.Sprintf("Nats server disconect error %+v", e))
+			}
+		}),
+		nats.ReconnectHandler(func(_ *nats.Conn) {
+			srv.logger.Debug("Nats server  Reconnect")
+		}),
+		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
+			srv.logger.Debug("Nats server  Discovered")
+		}),
+	)
+
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
@@ -185,9 +196,10 @@ func (srv *Server) Stop() {
 	}
 }
 
-func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*oNats.Subscription, error) {
+func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
-		go func(enc *oNats.EncodedConn) {
+		go func(enc *nats.EncodedConn) {
+			t := time.Now()
 			requestID := rq.Headers.Get(XRequestId)
 			if requestID == "" {
 				requestID = RandomString(6)
@@ -195,20 +207,11 @@ func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, que
 			}
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
 			go func() {
-				// remove sensitive data, may cause security leak
-				url := rq.URL + ""
-				s := strings.Split(url, "/")
-				l := 5
-				if len(s) < 5 {
-					l = len(s)
-				}
-				s1 := s[1:l]
-				url = strings.Join(s1, "/")
-				logWithId.Debug("Nats received message", map[string]interface{}{"url": url})
+				url := extractPartsFromUrl(rq.URL, 4, "/")
+				logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
 			}()
 
 			defer handlePanic(conn, logWithId, rpSubject)
-			t := time.Now()
 
 			rp := &Response{
 				Headers: http.Header{},
@@ -230,7 +233,7 @@ func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, que
 			}
 
 			defer func() {
-				logWithId.Info("Request complete", map[string]interface{}{
+				logWithId.Info("Nats server request complete", map[string]interface{}{
 					"method": rq.Method,
 					//"url":        rq.URL,
 					"status":     rp.StatusCode,
@@ -248,7 +251,7 @@ func subscribe(conn *oNats.EncodedConn, logger logur.Logger, subject string, que
 	})
 }
 
-func handlePanic(enc *oNats.EncodedConn, logger logur.Logger, rpSubject string) {
+func handlePanic(enc *nats.EncodedConn, logger logur.Logger, rpSubject string) {
 	if r := recover(); r != nil {
 		var ok bool
 		var err error
@@ -261,7 +264,7 @@ func handlePanic(enc *oNats.EncodedConn, logger logur.Logger, rpSubject string) 
 	}
 }
 
-func replyError(enc *oNats.EncodedConn, logger logur.Logger, err error, rpSubject string) {
+func replyError(enc *nats.EncodedConn, logger logur.Logger, err error, rpSubject string) {
 	logger.Error(fmt.Sprintf("Nats error: : %+v\n ", err))
 	resp := &Response{
 		StatusCode: 500, // internal server error as default

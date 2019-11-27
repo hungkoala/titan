@@ -3,6 +3,12 @@ package titan
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/nats-io/nats.go"
 
 	"logur.dev/logur"
 
@@ -11,10 +17,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+var hostname string
 var natConfig NatsConfig
 var logConfig log.Config
+var defaultClient *Client
+var mux sync.Mutex
+var logger logur.Logger
 
 func init() {
+	var err error
+	hostname, err = os.Hostname()
+	if hostname == "" || err != nil {
+		hostname = "localhost"
+	}
+
 	viper.AddConfigPath(".")
 	viper.SetConfigName("config")
 	viper.AutomaticEnv() // read in environment variables that match
@@ -31,7 +47,7 @@ func init() {
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault("Nats.ReadTimeout", 5)
 
-	err := viper.UnmarshalKey("Nats", &natConfig)
+	err = viper.UnmarshalKey("Nats", &natConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
 		os.Exit(1)
@@ -41,7 +57,6 @@ func init() {
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal logging config error %+v", err))
 	}
-
 }
 
 type NatsConfig struct {
@@ -58,5 +73,59 @@ func GetLogConfig() *log.Config {
 }
 
 func GetLogger() logur.Logger {
-	return log.NewLogger(GetLogConfig())
+	if logger != nil {
+		return logger
+	}
+	mux.Lock()
+	logger = log.WithFields(log.NewLogger(GetLogConfig()), map[string]interface{}{"hostname": hostname})
+	mux.Unlock()
+	return logger
+}
+
+func GetDefaultClient() *Client {
+	if defaultClient != nil {
+		return defaultClient
+	}
+	config := GetNatsConfig()
+	log := GetLogger()
+	mux.Lock()
+	conn, err := NewConnection(
+		config.Servers,
+		nats.Timeout(10*time.Second), // connection timeout
+		nats.MaxReconnects(-1),       // never give up
+		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {
+			if e != nil {
+				log.Error(fmt.Sprintf("Nats client error %+v", e))
+			}
+		}),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, e error) {
+			if e != nil {
+				log.Error(fmt.Sprintf("Nats client disconect error %+v", e))
+			}
+		}),
+		nats.ReconnectHandler(func(_ *nats.Conn) {
+			log.Debug("Nats client  Reconnect")
+		}),
+		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
+			log.Debug("Nats client  Discovered")
+		}),
+	)
+
+	if err != nil {
+		fmt.Println(fmt.Sprintf("nats client connection error %+v", err))
+		os.Exit(1)
+	}
+
+	go func() {
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+		// close connection on exit
+		<-done
+		conn.Conn.Close()
+	}()
+
+	defaultClient = &Client{conn}
+	mux.Unlock()
+
+	return defaultClient
 }

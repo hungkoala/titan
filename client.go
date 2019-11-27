@@ -4,27 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
 type Client struct {
-	Addr string
+	conn *Connection
 }
 
-func (srv *Client) request(ctx *Context, rq *Request) (*Response, error) {
-	c, err := NewConnection(srv.Addr)
-	if err != nil {
-		return nil, err
-	}
+func (srv *Client) request(ctx *Context, rq *Request, subject string) (*Response, error) {
 	defer func(c *Connection) {
 		_ = c.Conn.Flush()
-		c.Conn.Close()
-	}(c)
-
-	subject := Url2Subject(rq.URL)
-	fmt.Println("Send request to subject " + subject)
-	return c.SendRequest(rq, subject)
+	}(srv.conn)
+	return srv.conn.SendRequest(rq, subject)
 }
 
 func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interface{}) error {
@@ -45,7 +38,37 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 }
 
 func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
-	rp, err := srv.request(ctx, rq)
+	t := time.Now()
+	logger := ctx.Logger()
+	// copy info inside context
+	rq.Headers.Set(XRequestId, ctx.RequestId())
+	//todo: copy authentication here
+
+	subject := Url2Subject(rq.URL)
+	logUrl := extractPartsFromUrl(rq.URL, 4, "/")
+
+	logger.Debug("Nats client sending request", map[string]interface{}{
+		"url": logUrl, "subject": subject, "id": ctx.RequestId(), "method": rq.Method})
+
+	rp, err := srv.request(ctx, rq, subject)
+
+	// just log event
+	defer func() {
+		var status string
+		if err != nil {
+			logger.Error(fmt.Sprintf("Nats client receive error %+v", err))
+			status = "error"
+		} else {
+			status = fmt.Sprintf("%d", rp.StatusCode)
+		}
+		logger.Debug("Nats client request complete", map[string]interface{}{
+			"id":         ctx.RequestId(),
+			"url":        logUrl,
+			"status":     status,
+			"subject":    subject,
+			"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
+		)
+	}()
 
 	if err != nil {
 		var rpErr *Response
@@ -72,16 +95,14 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	if rp.StatusCode < 200 {
 		return rp, &HttpClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
 	}
+
 	return rp, nil
 }
 
-func GetDefaultClient() *Client {
-	config := GetNatsConfig()
-	return &Client{config.Servers}
-}
-
-func Url2Subject(url string) string {
-	// not found
+func extractPartsFromUrl(url string, numberOfPart int, separator string) string {
+	if url == "" {
+		return url
+	}
 	if !strings.Contains(url, "/") {
 		return url
 	}
@@ -89,10 +110,13 @@ func Url2Subject(url string) string {
 		url = "/" + url
 	}
 	s := strings.Split(url, "/")
-	l := 4
-	if len(s)+1 <= 4 {
+	l := numberOfPart + 1
+	if len(s) < l {
 		l = len(s)
 	}
-	s1 := s[1:l]
-	return strings.Join(s1, ".")
+	return strings.Join(s[1:l], separator)
+}
+
+func Url2Subject(url string) string {
+	return extractPartsFromUrl(url, 3, ".")
 }
