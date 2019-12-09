@@ -56,8 +56,14 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	defer func() {
 		var status string
 		if err != nil {
-			logger.Error(fmt.Sprintf("Nats client receive error %+v", err))
 			status = "error"
+			logger.Error(fmt.Sprintf("Nats client receive error %+v", err), map[string]interface{}{
+				"id":         ctx.RequestId(),
+				"url":        logUrl,
+				"status":     status,
+				"subject":    subject,
+				"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
+			)
 		} else {
 			status = fmt.Sprintf("%d", rp.StatusCode)
 		}
@@ -77,15 +83,15 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		} else {
 			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500}
 		}
-		return nil, &HttpClientResponseError{Message: "Nats Client Request Timeout", Response: rpErr, Cause: err}
+		return nil, &ClientResponseError{Message: "Nats Client Request Timeout", Response: rpErr, Cause: err}
 	}
 
 	if rp.StatusCode >= 400 {
-		return nil, &HttpClientResponseError{Message: rp.Status, Response: rp}
+		return nil, &ClientResponseError{Message: rp.Status, Response: rp}
 	}
 
 	if rp.StatusCode >= 300 {
-		return nil, &HttpClientResponseError{Message: "HTTP 3xx Redirection was not implemented yet", Response: rp}
+		return nil, &ClientResponseError{Message: "HTTP 3xx Redirection was not implemented yet", Response: rp}
 	}
 
 	if rp.StatusCode >= 200 {
@@ -93,7 +99,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	}
 
 	if rp.StatusCode < 200 {
-		return rp, &HttpClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
+		return rp, &ClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
 	}
 
 	return rp, nil

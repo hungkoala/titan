@@ -48,6 +48,11 @@ func (c *Context) Logger() logur.Logger {
 	return logger
 }
 
+func (c *Context) Request() *Request {
+	request, _ := c.Value(XRequest).(*Request)
+	return request
+}
+
 func (c *Context) RequestId() string {
 	id, ok := c.Value(XRequestId).(string)
 	if !ok {

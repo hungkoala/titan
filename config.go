@@ -45,7 +45,7 @@ func init() {
 
 	// nats
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
-	viper.SetDefault("Nats.ReadTimeout", 5)
+	viper.SetDefault("Nats.ReadTimeout", 500)
 
 	err = viper.UnmarshalKey("Nats", &natConfig)
 	if err != nil {
@@ -118,7 +118,7 @@ func GetDefaultClient() *Client {
 
 	go func() {
 		done := make(chan os.Signal, 1)
-		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 		// close connection on exit
 		<-done
 		conn.Conn.Close()

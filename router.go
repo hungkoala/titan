@@ -43,10 +43,13 @@ func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
+		// add request to context
 		newRequest, err := httpRequestToRequest(r)
 		if err != nil {
 			m.Logger.Error(fmt.Sprintf("request coverting error: %+v\n ", err))
 		}
+
+		ctx = context.WithValue(ctx, XRequest, newRequest)
 
 		// cal handler
 		rp := handlerFunc(NewContext(ctx), newRequest)
@@ -63,8 +66,16 @@ func (m *Mux) RegisterJson(method, pattern string, h Handler) {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
-		rp := handleJsonRequest(NewContext(ctx), r, h)
-		err := writeResponse(w, rp)
+		// add request to context
+		newRequest, err := httpRequestToRequest(r)
+		if err != nil {
+			m.Logger.Error(fmt.Sprintf("request coverting error: %+v\n ", err))
+		}
+
+		ctx = context.WithValue(ctx, XRequest, newRequest)
+
+		rp := handleJsonRequest(NewContext(ctx), newRequest, h)
+		err = writeResponse(w, rp)
 		if err != nil {
 			m.Logger.Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
 		}
@@ -99,6 +110,11 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 		}
 	}
 
+	// write status code
+	if rp.StatusCode != 0 {
+		w.WriteHeader(rp.StatusCode)
+	}
+
 	// write body
 	if rp.Body != nil {
 		_, err := w.Write(rp.Body)
@@ -107,42 +123,52 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 		}
 
 	}
-	// write status code
-	if rp.StatusCode != 0 {
-		w.WriteHeader(rp.StatusCode)
-	}
+
 	return nil
 }
 
-func handleJsonRequest(c *Context, r *http.Request, cb Handler) *Response {
+func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 	logger := c.Logger()
 
 	builder := NewResBuilder()
 
-	//1. body to json
-	body, err := extractJsonBody(r)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Body parsing error: %+v\n ", err))
-		return builder.
-			StatusCode(400).
-			BodyJSON(&DefaultJsonError{
-				Message: "Body parsing error:" + err.Error(),
-				TraceId: c.RequestId(),
-				Links:   map[string][]string{"self": {r.URL.String()}},
-			}).
-			Build()
-	}
-
-	//2. call function handler
-	ret, err := callJsonHandler(c, body, cb)
+	//1. call function handler
+	ret, err := callJsonHandler(c, r.Body, cb)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
+
+		// see old code CommonExceptionHandler.java
+		comErr, ok := err.(commonError)
+		if ok {
+			code, mess := comErr.CommonError()
+			logger.Error(fmt.Sprintf("Common error: %s ", mess))
+			return builder.
+				StatusCode(400). //bad request
+				BodyJSON(&JsonError{
+					Message: code,
+					Links:   map[string][]string{"self": {r.URL}},
+				}).
+				Build()
+		}
+
+		// error is a server response type
+		if serverError, ok := err.(*ServerResponseError); ok {
+			return builder.
+				StatusCode(serverError.Status).
+				BodyJSON(&DefaultJsonError{
+					Message: "Json handler error:" + err.Error(),
+					TraceId: c.RequestId(),
+					Links:   map[string][]string{"self": {r.URL}},
+				}).
+				Build()
+		}
+
 		return builder.
 			StatusCode(500).
 			BodyJSON(&DefaultJsonError{
 				Message: "Json handler error:" + err.Error(),
 				TraceId: c.RequestId(),
-				Links:   map[string][]string{"self": {r.URL.String()}},
+				Links:   map[string][]string{"self": {r.URL}},
 			}).
 			Build()
 	}
@@ -153,7 +179,13 @@ func handleJsonRequest(c *Context, r *http.Request, cb Handler) *Response {
 			Build()
 	}
 
-	//3. process result
+	//it returned titan.Response already
+	if reflect.TypeOf(ret) == emptyResType {
+		resps := ret.(*Response)
+		return resps
+	}
+
+	//2. process result
 	retJson, err := json.Marshal(ret)
 	if err != nil {
 		logger.Error(fmt.Sprintf("response json encoding error: %+v\n ", err))
@@ -162,25 +194,19 @@ func handleJsonRequest(c *Context, r *http.Request, cb Handler) *Response {
 			BodyJSON(&DefaultJsonError{
 				Message: "response json encoding error:" + err.Error(),
 				TraceId: c.RequestId(),
-				Links:   map[string][]string{"self": {r.URL.String()}},
+				Links:   map[string][]string{"self": {r.URL}},
 			}).
 			Build()
 	}
+
 	return builder.
 		Body(retJson).
 		Build()
 }
 
-func extractJsonBody(r *http.Request) ([]byte, error) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return []byte{}, nil
-	}
-	defer func() { _ = r.Body.Close() }()
-	return body, nil
-}
-
-var emptyResType = reflect.TypeOf(&Request{})
+var emptyServerResponseErrorType = reflect.TypeOf(&ServerResponseError{})
+var emptyReqType = reflect.TypeOf(&Request{})
+var emptyResType = reflect.TypeOf(&Response{})
 var emptyContextType = reflect.TypeOf(&Context{})
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 var handlerFormatError = errors.New("Handler needs to be a func \n `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`")
@@ -225,11 +251,11 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 	oV := []reflect.Value{reflect.ValueOf(c)}
 
 	if numIn == 2 {
-		if len(body) == 0 {
+		if body == nil || len(body) == 0 {
 			return nil, errors.New("Body is empty")
 		}
 		var oPtr reflect.Value
-		if argType == emptyResType {
+		if argType == emptyReqType {
 			oPtr = reflect.ValueOf(body)
 		} else {
 			if argType.Kind() != reflect.Ptr {

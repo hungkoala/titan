@@ -2,6 +2,7 @@ package titan
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -13,6 +14,7 @@ const (
 	XLoggerId       = "X-LOGGER-ID"
 	XPathParams     = "X-PATH-PARAMS"
 	XQueryParams    = "X-QUERY-PARAMS"
+	XRequest        = "X-REQUEST"
 	XHostName       = "hostname"
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
@@ -40,6 +42,30 @@ func (r *Request) BodyJson(v interface{}) error {
 		return errors.WithMessage(err, "Json Unmarshal error ")
 	}
 	return nil
+}
+
+// Cookie returns the named cookie provided in the request or
+// ErrNoCookie if not found.
+// If multiple cookies match the given name, only one cookie will
+// be returned.
+func (r *Request) Cookie(name string) (*http.Cookie, error) {
+	for _, c := range ReadCookies(r.Headers, name) {
+		return c, nil
+	}
+	return nil, errors.New("http: named cookie not present")
+}
+
+// AddCookie adds a cookie to the request. Per RFC 6265 section 5.4,
+// AddCookie does not attach more than one Cookie header field. That
+// means all cookies, if any, are written into the same line,
+// separated by semicolon.
+func (r *Request) AddCookie(c *http.Cookie) {
+	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
+	if c := r.Headers.Get("Cookie"); c != "" {
+		r.Headers.Set("Cookie", c+"; "+s)
+	} else {
+		r.Headers.Set("Cookie", s)
+	}
 }
 
 // ---------------------------- Request builder code ------------------------------------
