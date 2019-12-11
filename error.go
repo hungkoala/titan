@@ -76,7 +76,7 @@ func NewCommonException(code string) *CommonException {
 }
 
 func (e *CommonException) Error() string {
-	return fmt.Sprintf("Exception: message '%s', code '%d'", e.Message, e.Code)
+	return fmt.Sprintf("Exception: message '%s', code '%s'", e.Message, e.Code)
 }
 
 func (e *CommonException) CommonError() (string, string) {
@@ -116,7 +116,7 @@ func NewRecordNotFoundException(entityType, id, code string) *RecordNotFoundExce
 //// ---------------
 type ServerResponseError struct {
 	Status  int
-	Body    interface{}
+	Body    []byte
 	Headers http.Header
 }
 

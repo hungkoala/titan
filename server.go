@@ -3,6 +3,7 @@ package titan
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -220,11 +221,22 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			ctx := context.Background()
 
 			// add log
-
 			ctx = context.WithValue(ctx, XLoggerId, logWithId)
 
 			// add request id
 			ctx = context.WithValue(ctx, XRequestId, requestID)
+
+			userInfoJson := rq.Headers.Get(XUserInfo)
+
+			if userInfoJson != "" {
+				var userInfo UserInfo
+				jerr := json.Unmarshal([]byte(userInfoJson), &userInfo)
+				if jerr != nil {
+					logger.Error(fmt.Sprintf("Unmarshal User Info  error: %+v\n ", jerr))
+				} else {
+					ctx = context.WithValue(ctx, XUserInfo, &userInfo)
+				}
+			}
 
 			rq, err := requestToHttpRequest(rq, ctx)
 			if err != nil {

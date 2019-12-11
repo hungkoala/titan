@@ -155,11 +155,7 @@ func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 		if serverError, ok := err.(*ServerResponseError); ok {
 			return builder.
 				StatusCode(serverError.Status).
-				BodyJSON(&DefaultJsonError{
-					Message: "Json handler error:" + err.Error(),
-					TraceId: c.RequestId(),
-					Links:   map[string][]string{"self": {r.URL}},
-				}).
+				Body(serverError.Body).
 				Build()
 		}
 
@@ -179,34 +175,37 @@ func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 			Build()
 	}
 
-	//it returned titan.Response already
-	if reflect.TypeOf(ret) == emptyResType {
-		resps := ret.(*Response)
-		return resps
-	}
-
-	//2. process result
-	retJson, err := json.Marshal(ret)
-	if err != nil {
-		logger.Error(fmt.Sprintf("response json encoding error: %+v\n ", err))
+	switch v := ret.(type) {
+	case string:
+		return builder.Body([]byte(ret.(string))).Build()
+	case int64, uint32, int, uint, float32, float64, bool:
+		return builder.Body([]byte(fmt.Sprintf("%v", ret))).Build()
+	case *Response:
+		return ret.(*Response)
+	default:
+		//2. process result
+		retJson, err := json.Marshal(ret)
+		if err != nil {
+			logger.Error(fmt.Sprintf("response json encoding error: %+v\n", err, v))
+			return builder.
+				StatusCode(500).
+				BodyJSON(&DefaultJsonError{
+					Message: "response json encoding error:" + err.Error(),
+					TraceId: c.RequestId(),
+					Links:   map[string][]string{"self": {r.URL}},
+				}).
+				Build()
+		}
 		return builder.
-			StatusCode(500).
-			BodyJSON(&DefaultJsonError{
-				Message: "response json encoding error:" + err.Error(),
-				TraceId: c.RequestId(),
-				Links:   map[string][]string{"self": {r.URL}},
-			}).
+			Body(retJson).
 			Build()
 	}
-
-	return builder.
-		Body(retJson).
-		Build()
 }
 
-var emptyServerResponseErrorType = reflect.TypeOf(&ServerResponseError{})
+//var emptyStringType = reflect.TypeOf("")
 var emptyReqType = reflect.TypeOf(&Request{})
-var emptyResType = reflect.TypeOf(&Response{})
+
+//var emptyResType = reflect.TypeOf(&Response{})
 var emptyContextType = reflect.TypeOf(&Context{})
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 var handlerFormatError = errors.New("Handler needs to be a func \n `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`")
@@ -251,7 +250,7 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 	oV := []reflect.Value{reflect.ValueOf(c)}
 
 	if numIn == 2 {
-		if body == nil || len(body) == 0 {
+		if len(body) == 0 {
 			return nil, errors.New("Body is empty")
 		}
 		var oPtr reflect.Value

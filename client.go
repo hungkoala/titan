@@ -1,8 +1,10 @@
 package titan
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 type Client struct {
 	conn *Connection
 }
+
+var null = []byte{'n', 'u', 'l', 'l'}
 
 func (srv *Client) request(ctx *Context, rq *Request, subject string) (*Response, error) {
 	defer func(c *Connection) {
@@ -30,9 +34,71 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		return nil
 	}
 
-	err = json.Unmarshal(msg.Body, &receive)
-	if err != nil {
-		return errors.WithMessage(err, "nats client json parsing error")
+	if bytes.Equal(msg.Body, null) {
+		receive = nil
+		return nil
+	}
+
+	// very very stupid code, keep it here becaus emicronaut used it.  please return json instead
+	switch v := receive.(type) {
+	case *string:
+		ctx.Logger().Trace("espected type ", map[string]interface{}{"type": v})
+		ptr := receive.(*string)
+		*ptr = string(msg.Body)
+	case *int:
+		result, err := strconv.ParseInt(string(msg.Body), 10, 0)
+		if err != nil {
+			return errors.WithMessage(err, "paring integer error")
+		}
+		ptr := receive.(*int)
+		*ptr = int(result)
+	case *int32:
+		result, err := strconv.ParseInt(string(msg.Body), 10, 32)
+		if err != nil {
+			return errors.WithMessage(err, "paring int32 error")
+		}
+		ptr := receive.(*int32)
+		*ptr = int32(result)
+	case *int64:
+		result, err := strconv.ParseInt(string(msg.Body), 10, 64)
+		if err != nil {
+			return errors.WithMessage(err, "paring int64 error")
+		}
+		ptr := receive.(*int64)
+		*ptr = result
+	case *uint:
+		result, err := strconv.ParseUint(string(msg.Body), 10, 0)
+		if err != nil {
+			return errors.WithMessage(err, "paring uint error")
+		}
+		ptr := receive.(*uint)
+		*ptr = uint(result)
+	case *float64:
+		result, err := strconv.ParseFloat(string(msg.Body), 64)
+		if err != nil {
+			return errors.WithMessage(err, "paring float64 error")
+		}
+		ptr := receive.(*float64)
+		*ptr = result
+	case *float32:
+		result, err := strconv.ParseFloat(string(msg.Body), 32)
+		if err != nil {
+			return errors.WithMessage(err, "paring float32 error")
+		}
+		ptr := receive.(*float32)
+		*ptr = float32(result)
+	case *bool:
+		result, err := strconv.ParseBool(string(msg.Body))
+		if err != nil {
+			return errors.WithMessage(err, "paring bool error")
+		}
+		ptr := receive.(*bool)
+		*ptr = result
+	default:
+		err = json.Unmarshal(msg.Body, &receive)
+		if err != nil {
+			return errors.WithMessage(err, "nats client json parsing error")
+		}
 	}
 	return nil
 }
@@ -42,7 +108,19 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	logger := ctx.Logger()
 	// copy info inside context
 	rq.Headers.Set(XRequestId, ctx.RequestId())
+
 	//todo: copy authentication here
+	userInfoJson := ctx.UserInfoJson()
+	if userInfoJson != "" {
+		rq.Headers.Set(XUserInfo, ctx.UserInfoJson())
+	}
+
+	// hacked code,  dont know why we need it, should re-check it in micronaut
+	multiTenantCareProviderId, ok := ctx.Value("multiTenantCareProviderId").(string)
+	if !ok && multiTenantCareProviderId != "" {
+		rq.Headers.Set("multiTenantCareProviderId", multiTenantCareProviderId)
+	}
+	// end of hacked code
 
 	subject := Url2Subject(rq.URL)
 	logUrl := extractPartsFromUrl(rq.URL, 4, "/")
