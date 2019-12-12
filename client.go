@@ -95,7 +95,7 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		ptr := receive.(*bool)
 		*ptr = result
 	default:
-		err = json.Unmarshal(msg.Body, &receive)
+		err := json.Unmarshal(msg.Body, &receive)
 		if err != nil {
 			return errors.WithMessage(err, "nats client json parsing error")
 		}
@@ -103,7 +103,7 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 	return nil
 }
 
-func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
+func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, *ClientResponseError) {
 	t := time.Now()
 	logger := ctx.Logger()
 	// copy info inside context
@@ -170,10 +170,6 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 	if rp.StatusCode >= 300 {
 		return nil, &ClientResponseError{Message: "HTTP 3xx Redirection was not implemented yet", Response: rp}
-	}
-
-	if rp.StatusCode >= 200 {
-		return rp, nil
 	}
 
 	if rp.StatusCode < 200 {
