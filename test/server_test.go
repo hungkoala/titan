@@ -50,8 +50,8 @@ func TestGetRequest(t *testing.T) {
 	}
 
 	result := &GetResult{}
-	err = json.Unmarshal(msg.Body, &result)
-	if err != nil {
+	jsonErr := json.Unmarshal(msg.Body, &result)
+	if jsonErr != nil {
 		t.Errorf("json Unmarshal error  = %v", err)
 	}
 	//3. assert it
@@ -72,7 +72,6 @@ type PostResponse struct {
 }
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
-
 	//1. setup server
 	server := titan.NewServer("api.service.test",
 		titan.Routes(func(r titan.Router) {
@@ -104,8 +103,8 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	}
 
 	result := &PostResponse{}
-	err = json.Unmarshal(msg.Body, &result)
-	if err != nil {
+	jsonErr := json.Unmarshal(msg.Body, &result)
+	if jsonErr != nil {
 		t.Errorf("json Unmarshal error  = %v", err)
 	}
 
