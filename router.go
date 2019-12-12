@@ -183,10 +183,11 @@ func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 	case *Response:
 		return ret.(*Response)
 	default:
+		_ = v
 		//2. process result
 		retJson, err := json.Marshal(ret)
 		if err != nil {
-			logger.Error(fmt.Sprintf("response json encoding error: %+v\n", err, v))
+			logger.Error(fmt.Sprintf("response json encoding error: %+v\n", err))
 			return builder.
 				StatusCode(500).
 				BodyJSON(&DefaultJsonError{
