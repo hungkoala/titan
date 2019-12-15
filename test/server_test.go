@@ -112,3 +112,5 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	assert.NotEmpty(t, result.Id, "Request Id not found")
 	assert.Equal(t, result.FullName, fmt.Sprintf("%s %s", potsRequest.FirstName, potsRequest.LastName))
 }
+
+// should create more test cases relate to exception/validation handling

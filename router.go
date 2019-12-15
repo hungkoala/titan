@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
+
 	"logur.dev/logur"
 
 	"github.com/go-chi/chi"
@@ -127,26 +129,59 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 	return nil
 }
 
-func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
-	logger := c.Logger()
+func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
+	logger := ctx.Logger()
 
 	builder := NewResBuilder()
 
 	//1. call function handler
-	ret, err := callJsonHandler(c, r.Body, cb)
+	ret, err := callJsonHandler(ctx, r.Body, cb)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 
 		// see old code CommonExceptionHandler.java
-		comErr, ok := err.(commonError)
+		comEx, ok := err.(*CommonException)
 		if ok {
-			code, mess := comErr.CommonError()
-			logger.Error(fmt.Sprintf("Common error: %s ", mess))
+			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))
 			return builder.
 				StatusCode(400). //bad request
-				BodyJSON(&JsonError{
-					Message: code,
+				BodyJSON(&DefaultJsonError{
+					Message:     comEx.Message,
+					ServerError: comEx.ServerError,
+					Links:       map[string][]string{"self": {r.URL}},
+					TraceId:     ctx.RequestId(),
+				}).
+				Build()
+		}
+
+		// validation error ConstraintViolationExceptionHandler.java
+		if _, ok := err.(*validator.InvalidValidationError); ok {
+			return builder.
+				StatusCode(500).
+				BodyJSON(&DefaultJsonError{
+					Message: "Invalid Validation Error",
+					TraceId: ctx.RequestId(),
 					Links:   map[string][]string{"self": {r.URL}},
+				}).
+				Build()
+		}
+
+		if _, ok := err.(validator.ValidationErrors); ok {
+			//todo, please implement. Should map this error into micronaut validation error
+		}
+
+		// implement HttpClientResponseException, see ServiceResponseExceptionHandler.java
+		if clientErr, ok := err.(*ClientResponseError); ok {
+			resp := clientErr.Response
+			if resp == nil {
+				logger.Error("Missing Response inside ClientResponseError")
+			}
+			builder.
+				StatusCode(resp.StatusCode). //bad request
+				BodyJSON(&DefaultJsonError{
+					Message: clientErr.Message,
+					Links:   map[string][]string{"self": {r.URL}},
+					TraceId: ctx.RequestId(),
 				}).
 				Build()
 		}
@@ -159,12 +194,14 @@ func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 				Build()
 		}
 
+		// default all error will come here, see InternalErrorExceptionHandler.java
 		return builder.
 			StatusCode(500).
 			BodyJSON(&DefaultJsonError{
-				Message: "Json handler error:" + err.Error(),
-				TraceId: c.RequestId(),
-				Links:   map[string][]string{"self": {r.URL}},
+				Message:     err.Error(),
+				ServerError: "SOME_THINGS_WENT_WRONG",
+				TraceId:     ctx.RequestId(),
+				Links:       map[string][]string{"self": {r.URL}},
 			}).
 			Build()
 	}
@@ -192,7 +229,7 @@ func handleJsonRequest(c *Context, r *Request, cb Handler) *Response {
 				StatusCode(500).
 				BodyJSON(&DefaultJsonError{
 					Message: "response json encoding error:" + err.Error(),
-					TraceId: c.RequestId(),
+					TraceId: ctx.RequestId(),
 					Links:   map[string][]string{"self": {r.URL}},
 				}).
 				Build()

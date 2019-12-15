@@ -58,42 +58,35 @@ func callers() *stack {
 	return &st
 }
 
-type commonError interface {
-	CommonError() (string, string)
-}
-
+// see CommonException.java
 type CommonException struct {
-	Message string
-	Code    string
+	Message     string
+	ServerError string
 	*stack
 }
 
-func NewCommonException(code string) *CommonException {
+func NewCommonException(serverError string) *CommonException {
 	return &CommonException{
-		Code:  code,
-		stack: callers(),
+		ServerError: serverError,
+		stack:       callers(),
 	}
 }
 
 func (e *CommonException) Error() string {
-	return fmt.Sprintf("Exception: message '%s', code '%s'", e.Message, e.Code)
-}
-
-func (e *CommonException) CommonError() (string, string) {
-	return e.Code, e.Message
+	return fmt.Sprintf("Exception: Message '%s', ServerError '%s'", e.Message, e.ServerError)
 }
 
 type RecordDeleteFailedException struct {
 	*CommonException
 }
 
-func NewRecordDeleteFailedException(entityType string, id UUID, code string) *RecordDeleteFailedException {
+func NewRecordDeleteFailedException(entityType string, id UUID, serverError string) *RecordDeleteFailedException {
 	message := fmt.Sprintf("%s record with id %s doesn't exists or deleted", entityType, id)
 	return &RecordDeleteFailedException{
 		CommonException: &CommonException{
-			Code:    code,
-			Message: message,
-			stack:   callers(),
+			ServerError: serverError,
+			Message:     message,
+			stack:       callers(),
 		},
 	}
 }
@@ -102,18 +95,18 @@ type RecordNotFoundException struct {
 	*CommonException
 }
 
-func NewRecordNotFoundException(entityType, id, code string) *RecordNotFoundException {
+func NewRecordNotFoundException(entityType, id, serverError string) *RecordNotFoundException {
 	message := fmt.Sprintf("%s record with id %s doesn't exists or deleted", entityType, id)
 	return &RecordNotFoundException{
 		CommonException: &CommonException{
-			Code:    code,
-			Message: message,
-			stack:   callers(),
+			ServerError: serverError,
+			Message:     message,
+			stack:       callers(),
 		},
 	}
 }
 
-//// ---------------
+//// --------------- ServerResponseError -------
 type ServerResponseError struct {
 	Status  int
 	Body    []byte

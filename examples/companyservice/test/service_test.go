@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"gitlab.com/silenteer/titan"
 
 	"gitlab.com/silenteer/titan/examples/companyservice/api"
@@ -37,9 +39,8 @@ func TestMain(m *testing.M) {
 func TestGetCompanies(t *testing.T) {
 	context := titan.NewContext(context.Background())
 	companies, err := companyService.GetCompanies(context)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("get companies error: %+v\n ", err))
-	}
+
+	require.NoError(t, err, fmt.Sprintf("Get Companies error: %+v\n ", err))
 
 	assert.Nil(t, err)
 	assert.Equal(t, len(*companies), 1)
@@ -50,11 +51,9 @@ func TestGetNotExistCompany(t *testing.T) {
 	context := titan.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "not_exist")
-	if err != nil {
-		fmt.Println(fmt.Sprintf("get company error: %+v\n ", err))
-	}
 
-	assert.Nil(t, err)
+	require.NoError(t, err, fmt.Sprintf("Get Company error: %+v\n ", err))
+
 	assert.Nil(t, company)
 }
 
@@ -62,11 +61,7 @@ func TestGetExistCompany(t *testing.T) {
 	context := titan.NewContext(context.Background())
 
 	company, err := companyService.GetCompany(context, "hung")
-	if err != nil {
-		fmt.Println(fmt.Sprintf("Get Company error: %+v\n ", err))
-	}
-
-	assert.Nil(t, err)
-	assert.NotNil(t, company)
+	require.NoError(t, err, fmt.Sprintf("Get Company error: %+v\n ", err))
+	require.NotNil(t, company)
 	assert.Equal(t, company.Name, "hung")
 }

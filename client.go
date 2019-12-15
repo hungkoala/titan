@@ -103,7 +103,7 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 	return nil
 }
 
-func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, *ClientResponseError) {
+func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	t := time.Now()
 	logger := ctx.Logger()
 	// copy info inside context
@@ -173,7 +173,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, *ClientRes
 	}
 
 	if rp.StatusCode < 200 {
-		return rp, &ClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
+		return nil, &ClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
 	}
 
 	return rp, nil
