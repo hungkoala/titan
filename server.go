@@ -58,13 +58,17 @@ func NewServer(subject string, options ...Option) *Server {
 	r := chi.NewRouter()
 	r.Use(RouteParamsMiddleware)
 
+	// set default handlers
+	defaultHandlers := &DefaultHandlers{subject: subject}
+	optionsWithDefault := append(options, Routes(defaultHandlers.Routes))
+
 	opts := Options{
 		config: config,
 		router: NewRouter(r),
 		queue:  "workers",
 	}
 
-	for _, opt := range options {
+	for _, opt := range optionsWithDefault {
 		if opt != nil {
 			if err := opt(&opts); err != nil {
 				logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))

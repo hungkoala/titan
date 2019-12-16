@@ -1,8 +1,10 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -113,4 +115,47 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	assert.Equal(t, result.FullName, fmt.Sprintf("%s %s", potsRequest.FirstName, potsRequest.LastName))
 }
 
-// should create more test cases relate to exception/validation handling
+func TestDefaultHandlers(t *testing.T) {
+	ctx := titan.NewContext(context.Background())
+	client := titan.GetDefaultClient()
+	//1. setup server
+	server := titan.NewServer("api.service.test")
+
+	go func() { server.Start() }()
+
+	// wait for server ready
+	time.Sleep(5 * time.Millisecond)
+	defer server.Stop()
+
+	//2. test health endPoint
+	request, _ := titan.NewReqBuilder().
+		Get("/api/service/test/health").
+		Build()
+
+	var result titan.Health
+	err := client.SendAndReceiveJson(ctx, request, &result)
+	if err != nil {
+		t.Errorf("Error = %v", err)
+	}
+	assert.Equal(t, result.Status, "UP")
+
+	//3. test info endPoint
+	_ = os.Setenv("BUILD_VERSION", "1.0")
+	_ = os.Setenv("BUILD_DATE", "15/12/2019")
+	_ = os.Setenv("BUILD_TAG", "mytag")
+
+	request, _ = titan.NewReqBuilder().
+		Get("/api/service/test/info").
+		Build()
+
+	var info titan.AppInfo
+	err = client.SendAndReceiveJson(ctx, request, &info)
+	if err != nil {
+		t.Errorf("Error = %v", err)
+	}
+	assert.Equal(t, info.Build.Version, "1.0")
+	assert.Equal(t, info.Build.Date, "15/12/2019")
+	assert.Equal(t, info.Build.Tag, "mytag")
+}
+
+// todo: should create more test cases relate to exception/validation handling
