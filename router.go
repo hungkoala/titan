@@ -240,7 +240,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 	}
 }
 
-//var emptyStringType = reflect.TypeOf("")
+var emptyStringType = reflect.TypeOf("")
 var emptyReqType = reflect.TypeOf(&Request{})
 
 //var emptyResType = reflect.TypeOf(&Response{})
@@ -291,9 +291,11 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 		if len(body) == 0 {
 			return nil, errors.New("Body is empty")
 		}
+
 		var oPtr reflect.Value
-		if argType == emptyReqType {
-			oPtr = reflect.ValueOf(body)
+
+		if argType == emptyReqType || argType == emptyStringType {
+			oPtr = reflect.ValueOf(string(body))
 		} else {
 			if argType.Kind() != reflect.Ptr {
 				oPtr = reflect.New(argType)

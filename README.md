@@ -3,6 +3,7 @@
 Run command below
 ~~~~
 git config --global --add url."git@gitlab.com:".insteadOf "https://gitlab.com/"
+git config --global --add url."git@git.tutum.dev:".insteadOf "https://git.tutum.dev/"
 
 export GOPRIVATE="gitlab.com/silenteer,git.tutum.dev/medi/tutum"
 ~~~~

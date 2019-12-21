@@ -39,10 +39,10 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		return nil
 	}
 
-	// very very stupid code, keep it here becaus emicronaut used it.  please return json instead
+	// very very stupid code, keep it here because micronaut used it.  please return json instead
 	switch v := receive.(type) {
 	case *string:
-		ctx.Logger().Trace("espected type ", map[string]interface{}{"type": v})
+		ctx.Logger().Trace("expected type ", map[string]interface{}{"type": v})
 		ptr := receive.(*string)
 		*ptr = string(msg.Body)
 	case *int:
