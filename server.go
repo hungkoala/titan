@@ -205,6 +205,9 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
 		go func(enc *nats.EncodedConn) {
 			t := time.Now()
+			if rq.Headers == nil {
+				rq.Headers = http.Header{}
+			}
 			requestID := rq.Headers.Get(XRequestId)
 			if requestID == "" {
 				requestID = RandomString(6)
