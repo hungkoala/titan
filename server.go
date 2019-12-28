@@ -215,7 +215,7 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			}
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
 			go func() {
-				url := extractPartsFromUrl(rq.URL, 4, "/")
+				url := extractLoggablePartsFromUrl(rq.URL)
 				logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
 			}()
 
@@ -245,7 +245,7 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				}
 			}
 
-			rq, err := requestToHttpRequest(rq, ctx)
+			rq, err := natsRequestToHttpRequest(rq, ctx)
 			if err != nil {
 				replyError(enc, logWithId, err, rpSubject)
 				return
@@ -253,8 +253,8 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 
 			defer func() {
 				logWithId.Info("Nats server request complete", map[string]interface{}{
-					"method": rq.Method,
-					//"url":        rq.URL,
+					"method":     rq.Method,
+					"url":        rq.URL,
 					"status":     rp.StatusCode,
 					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 				)
@@ -296,7 +296,7 @@ func replyError(enc *nats.EncodedConn, logger logur.Logger, err error, rpSubject
 	}
 }
 
-func requestToHttpRequest(rq *Request, c context.Context) (*http.Request, error) {
+func natsRequestToHttpRequest(rq *Request, c context.Context) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)
@@ -304,7 +304,9 @@ func requestToHttpRequest(rq *Request, c context.Context) (*http.Request, error)
 		body = bytes.NewReader([]byte{})
 	}
 
-	request, err := http.NewRequestWithContext(c, rq.Method, rq.URL, body)
+	topic := extractTopicFromHttpUrl(rq.URL)
+
+	request, err := http.NewRequestWithContext(c, rq.Method, topic, body)
 	if err != nil {
 		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
 	}

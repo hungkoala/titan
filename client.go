@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -123,7 +122,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	// end of hacked code
 
 	subject := Url2Subject(rq.URL)
-	logUrl := extractPartsFromUrl(rq.URL, 4, "/")
+	logUrl := extractLoggablePartsFromUrl(rq.URL)
 
 	logger.Debug("Nats client sending request", map[string]interface{}{
 		"url": logUrl, "subject": subject, "id": ctx.RequestId(), "method": rq.Method})
@@ -177,26 +176,4 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	}
 
 	return rp, nil
-}
-
-func extractPartsFromUrl(url string, numberOfPart int, separator string) string {
-	if url == "" {
-		return url
-	}
-	if !strings.Contains(url, "/") {
-		return url
-	}
-	if !strings.HasPrefix(url, "/") {
-		url = "/" + url
-	}
-	s := strings.Split(url, "/")
-	l := numberOfPart + 1
-	if len(s) < l {
-		l = len(s)
-	}
-	return strings.Join(s[1:l], separator)
-}
-
-func Url2Subject(url string) string {
-	return extractPartsFromUrl(url, 3, ".")
 }

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"gitlab.com/silenteer/titan"
 
 	"github.com/stretchr/testify/assert"
@@ -47,20 +49,48 @@ func TestGetRequest(t *testing.T) {
 		Build()
 
 	msg, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
-	if err != nil {
-		t.Errorf("Error = %v", err)
-	}
+	require.NoError(t, err, "Sending Nats request error")
 
 	result := &GetResult{}
 	jsonErr := json.Unmarshal(msg.Body, &result)
-	if jsonErr != nil {
-		t.Errorf("json Unmarshal error  = %v", err)
-	}
+	require.NoError(t, jsonErr, "Unmarshal response error")
+
 	//3. assert it
 	assert.NotEmpty(t, result.RequestId, "Request Id not found")
 	assert.Equal(t, result.PathParams["id"], "10002")
 	assert.Equal(t, result.QueryParams["from"][0], "10")
 	assert.Equal(t, result.QueryParams["to"][0], "90")
+}
+
+func TestRegisterTopic(t *testing.T) {
+	//1. setup server
+	server := titan.NewServer("api.service.test",
+		titan.Routes(func(r titan.Router) {
+			r.RegisterTopic("GET_DATA", func(c *titan.Context) (*titan.Response, error) {
+				return titan.NewResBuilder().
+					BodyJSON(&GetResult{
+						c.RequestId(),
+						c.QueryParams(),
+						c.PathParams(),
+					}).
+					Build(), nil
+			})
+		}),
+	)
+
+	go func() { server.Start() }()
+
+	// wait for server ready
+	time.Sleep(80 * time.Microsecond)
+	defer server.Stop()
+
+	//2. client request it
+	request, _ := titan.NewReqBuilder().
+		Post("/api/service/test/GET_DATA").
+		Build()
+
+	_, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
+	require.NoError(t, err, "Sending Nats request error")
 }
 
 type PostRequest struct {
@@ -100,15 +130,11 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		Build()
 
 	msg, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
-	if err != nil {
-		t.Errorf("Error = %v", err)
-	}
+	require.NoError(t, err, "Sending Nats request error")
 
 	result := &PostResponse{}
 	jsonErr := json.Unmarshal(msg.Body, &result)
-	if jsonErr != nil {
-		t.Errorf("json Unmarshal error  = %v", err)
-	}
+	require.NoError(t, jsonErr, "Unmarshal response error")
 
 	//3. assert it
 	assert.NotEmpty(t, result.Id, "Request Id not found")
@@ -134,9 +160,8 @@ func TestDefaultHandlers(t *testing.T) {
 
 	var result titan.Health
 	err := client.SendAndReceiveJson(ctx, request, &result)
-	if err != nil {
-		t.Errorf("Error = %v", err)
-	}
+	require.NoError(t, err, "Sending Nats request error")
+
 	assert.Equal(t, result.Status, "UP")
 
 	//3. test info endPoint
@@ -150,9 +175,8 @@ func TestDefaultHandlers(t *testing.T) {
 
 	var info titan.AppInfo
 	err = client.SendAndReceiveJson(ctx, request, &info)
-	if err != nil {
-		t.Errorf("Error = %v", err)
-	}
+	require.NoError(t, err, "Sending Nats request error")
+
 	assert.Equal(t, info.Build.Version, "1.0")
 	assert.Equal(t, info.Build.Date, "15/12/2019")
 	assert.Equal(t, info.Build.Tag, "mytag")

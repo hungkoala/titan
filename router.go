@@ -24,6 +24,7 @@ type Router interface {
 	http.Handler
 	Register(method, pattern string, h HandlerFunc)
 	RegisterJson(method, pattern string, h Handler)
+	RegisterTopic(topic string, h Handler)
 }
 
 type Mux struct {
@@ -41,7 +42,8 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
-	m.Router.MethodFunc(method, pattern, func(w http.ResponseWriter, r *http.Request) {
+	topic := extractTopicFromHttpUrl(pattern)
+	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
@@ -63,8 +65,16 @@ func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 	})
 }
 
+func (m *Mux) RegisterTopic(topic string, h Handler) {
+	if !strings.HasPrefix(topic, "/") {
+		topic = "/" + topic
+	}
+	m.RegisterJson("POST", topic, h)
+}
+
 func (m *Mux) RegisterJson(method, pattern string, h Handler) {
-	m.Router.MethodFunc(method, pattern, func(w http.ResponseWriter, r *http.Request) {
+	topic := extractTopicFromHttpUrl(pattern)
+	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
 
@@ -136,6 +146,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 
 	//1. call function handler
 	ret, err := callJsonHandler(ctx, r.Body, cb)
+
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 

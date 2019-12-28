@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -129,20 +128,4 @@ func GetDefaultClient() *Client {
 	mux.Unlock()
 
 	return defaultClient
-}
-
-// copy from
-func AutomaticEnv() {
-	for _, key := range viper.AllKeys() {
-		// copy from default to override
-		viper.Set(key, viper.Get(key))
-
-		envKey := strings.ToUpper(key)
-
-		value, exist := os.LookupEnv(envKey)
-		if exist {
-			fmt.Println("----- set value = ", value)
-			viper.Set(key, value)
-		}
-	}
 }
