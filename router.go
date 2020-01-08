@@ -17,6 +17,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// use a single instance of Validate, it caches struct info
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
+
 type Handler interface{}
 type HandlerFunc func(*Context, *Request) *Response
 
@@ -177,8 +184,29 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 				Build()
 		}
 
-		if _, ok := err.(validator.ValidationErrors); ok {
-			//todo, please implement. Should map this error into micronaut validation error
+		if _, ok := err.(*validator.ValidationErrors); !ok {
+			var validationErrors []ValidationError
+
+			for _, err := range err.(validator.ValidationErrors) {
+				validationErrors = append(validationErrors, ValidationError{
+					Namespace: err.Namespace(),
+					Field:     err.Field(),
+					Rule:      err.Tag(),
+					Value:     err.Value(),
+					Param:     err.Param(),
+				})
+			}
+
+			return builder.
+				StatusCode(400). // bad request
+				BodyJSON(&DefaultJsonError{
+					Message:          "Validation Errors",
+					TraceId:          ctx.RequestId(),
+					Links:            map[string][]string{"self": {r.URL}},
+					ValidationErrors: validationErrors,
+					ServerError:      "Bad Request",
+				}).
+				Build()
 		}
 
 		// implement HttpClientResponseException, see ServiceResponseExceptionHandler.java
@@ -260,7 +288,7 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 var handlerFormatError = errors.New("Handler needs to be a func \n `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`")
 var handlerExample = "\n Example: `func(c *Context, interface{}) (interface{}, error)` or \n `func(c *Context) (interface{}, error)`"
 
-func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, error) {
+func callJsonHandler(ctx *Context, body []byte, cb interface{}) (interface{}, error) {
 	if cb == nil {
 		return nil, errors.New("nats: Handler is required")
 	}
@@ -296,7 +324,7 @@ func callJsonHandler(c *Context, body []byte, cb interface{}) (interface{}, erro
 	}
 
 	cbValue := reflect.ValueOf(cb)
-	oV := []reflect.Value{reflect.ValueOf(c)}
+	oV := []reflect.Value{reflect.ValueOf(ctx)}
 
 	if numIn == 2 {
 		if len(body) == 0 {
@@ -358,6 +386,9 @@ func decode(data []byte, vPtr interface{}) (err error) {
 		*arg = data
 	default:
 		err = json.Unmarshal(data, arg)
+		if err == nil {
+			err = validate.Struct(arg)
+		}
 	}
 	return
 }

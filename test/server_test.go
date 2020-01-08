@@ -94,13 +94,13 @@ func TestRegisterTopic(t *testing.T) {
 }
 
 type PostRequest struct {
-	FirstName string `json:"FirstName"`
-	LastName  string `json:"LastName"`
+	FirstName string `json:"FirstName" validate:"required"`
+	LastName  string `json:"LastName" validate:"required"`
 }
 
 type PostResponse struct {
-	Id       string `json:"id"`
-	FullName string `json:"FullName"`
+	Id       string `validate:"required"`
+	FullName string `validate:"required"`
 }
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
@@ -109,7 +109,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		titan.Routes(func(r titan.Router) {
 			r.RegisterJson("POST", "/api/service/test/post/{id}", func(c *titan.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
-					Id:       c.PathParams()["id"],
+					Id:       "",
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
 				}, nil
 			})

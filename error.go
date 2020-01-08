@@ -28,10 +28,19 @@ type DefaultJsonError struct {
 	Embedded map[string][]JsonError `json:"_embedded"`
 
 	TraceId          string            `json:"traceId"`
-	ValidationErrors map[string]string `json:"validationErrors"`
+	ValidationErrors []ValidationError `json:"validationErrors"`
 	ServerError      string            `json:"serverError"`
 }
 
+type ValidationError struct {
+	Namespace string      `json:"namespace"`
+	Field     string      `json:"field"`
+	Rule      string      `json:"rule"`
+	Value     interface{} `json:"value"`
+	Param     string      `json:"param"`
+}
+
+// mapped from HttpClientResponseException.java
 type ClientResponseError struct {
 	Message  string
 	Response *Response
@@ -76,6 +85,7 @@ func (e *CommonException) Error() string {
 	return fmt.Sprintf("Exception: Message '%s', ServerError '%s'", e.Message, e.ServerError)
 }
 
+// RecordDeleteFailedException.java
 type RecordDeleteFailedException struct {
 	*CommonException
 }
@@ -91,6 +101,7 @@ func NewRecordDeleteFailedException(entityType string, id UUID, serverError stri
 	}
 }
 
+//RecordNotFoundException.java
 type RecordNotFoundException struct {
 	*CommonException
 }

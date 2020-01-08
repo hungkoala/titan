@@ -4,7 +4,9 @@ go 1.13
 
 require (
 	github.com/go-chi/chi v4.0.2+incompatible
-	github.com/go-playground/validator/v10 v10.0.1
+	github.com/go-playground/locales v0.13.0
+	github.com/go-playground/universal-translator v0.17.0
+	github.com/go-playground/validator/v10 v10.1.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nats-io/nats-server/v2 v2.1.0 // indirect
 	github.com/nats-io/nats.go v1.8.1
