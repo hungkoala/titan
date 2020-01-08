@@ -81,7 +81,7 @@ func TestRegisterTopic(t *testing.T) {
 	go func() { server.Start() }()
 
 	// wait for server ready
-	time.Sleep(80 * time.Microsecond)
+	time.Sleep(1 * time.Second)
 	defer server.Stop()
 
 	//2. client request it
@@ -94,13 +94,13 @@ func TestRegisterTopic(t *testing.T) {
 }
 
 type PostRequest struct {
-	FirstName string `json:"FirstName" validate:"required"`
-	LastName  string `json:"LastName" validate:"required"`
+	FirstName string `json:"FirstName"`
+	LastName  string `json:"LastName"`
 }
 
 type PostResponse struct {
-	Id       string `validate:"required"`
-	FullName string `validate:"required"`
+	Id       string `json:"id"`
+	FullName string `json:"FullName"`
 }
 
 func TestPostRequestUsingHandlerJson(t *testing.T) {
@@ -109,7 +109,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		titan.Routes(func(r titan.Router) {
 			r.RegisterJson("POST", "/api/service/test/post/{id}", func(c *titan.Context, rq *PostRequest) (*PostResponse, error) {
 				return &PostResponse{
-					Id:       "",
+					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
 				}, nil
 			})
