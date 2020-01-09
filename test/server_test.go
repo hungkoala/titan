@@ -33,7 +33,7 @@ func TestGetRequest(t *testing.T) {
 						c.PathParams(),
 					}).
 					Build()
-			})
+			}, titan.Secured("gdjha", " sdasd", "sdasd"))
 		}),
 	)
 
@@ -112,7 +112,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
 				}, nil
-			})
+			}, titan.Secured("admin"))
 		}),
 	)
 
@@ -139,6 +139,82 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	//3. assert it
 	assert.NotEmpty(t, result.Id, "Request Id not found")
 	assert.Equal(t, result.FullName, fmt.Sprintf("%s %s", potsRequest.FirstName, potsRequest.LastName))
+}
+
+type TestValidationRequest struct {
+	FirstName string `json:"firstName" validate:"required"`
+	LastName  string `json:"lastName" validate:"required"`
+}
+
+type TestValidationResponse struct {
+	FullName string `json:"fullName"`
+}
+
+func TestValidator(t *testing.T) {
+	//1. setup server
+	server := titan.NewServer("api.service.test",
+		titan.Routes(func(r titan.Router) {
+			r.RegisterJson("POST", "/api/service/test/validation", func(c *titan.Context, rq *TestValidationRequest) (*TestValidationResponse, error) {
+				return &TestValidationResponse{
+					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
+				}, nil
+			}, titan.IsAnonymous())
+		}),
+	)
+
+	go func() { server.Start() }()
+
+	// wait for server ready
+	time.Sleep(5 * time.Millisecond)
+	defer server.Stop()
+
+	//2. client request it
+	potsRequest := &TestValidationRequest{FirstName: "", LastName: ""}
+	request, _ := titan.NewReqBuilder().
+		Post("/api/service/test/validation").
+		BodyJSON(potsRequest).
+		Build()
+
+	_, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
+	require.Error(t, err, "Sending Nats request error")
+	require.IsType(t, &titan.ClientResponseError{}, err)
+	cerr, _ := err.(*titan.ClientResponseError)
+	assert.NotNil(t, cerr.Response)
+	assert.Equal(t, 400, cerr.Response.StatusCode)
+}
+
+type TestAuthorizationResponse struct {
+}
+
+func TestAuthorization(t *testing.T) {
+	//1. setup server
+	server := titan.NewServer("api.service.test",
+		titan.Routes(func(r titan.Router) {
+			r.RegisterJson("GET", "/api/service/test/authorization", func(c *titan.Context) (*TestAuthorizationResponse, error) {
+				return &TestAuthorizationResponse{}, nil
+			}, titan.Secured("admin"))
+		}),
+	)
+
+	go func() { server.Start() }()
+
+	// wait for server ready
+	time.Sleep(5 * time.Millisecond)
+	defer server.Stop()
+
+	//2. client request it
+	potsRequest := &TestValidationRequest{FirstName: "", LastName: ""}
+	request, _ := titan.NewReqBuilder().
+		Get("/api/service/test/authorization").
+		BodyJSON(potsRequest).
+		Build()
+
+	_, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
+	require.Error(t, err, "Sending Nats request error")
+	require.IsType(t, &titan.ClientResponseError{}, err)
+	cerr, _ := err.(*titan.ClientResponseError)
+	assert.NotNil(t, cerr.Response)
+	assert.Equal(t, 401, cerr.Response.StatusCode)
 }
 
 func TestDefaultHandlers(t *testing.T) {

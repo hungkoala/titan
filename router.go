@@ -26,12 +26,14 @@ func init() {
 
 type Handler interface{}
 type HandlerFunc func(*Context, *Request) *Response
+type AuthFunc func(*Context) bool
 
 type Router interface {
 	http.Handler
-	Register(method, pattern string, h HandlerFunc)
-	RegisterJson(method, pattern string, h Handler)
-	RegisterTopic(topic string, h Handler)
+	// Deprecated: please use RegisterJson instead
+	Register(method, pattern string, h HandlerFunc, a ...AuthFunc)
+	RegisterJson(method, pattern string, h Handler, a ...AuthFunc)
+	RegisterTopic(topic string, h Handler, a ...AuthFunc)
 }
 
 type Mux struct {
@@ -48,7 +50,7 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Router.ServeHTTP(w, r)
 }
 
-func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
+func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc, auths ...AuthFunc) {
 	topic := extractTopicFromHttpUrl(pattern)
 	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -62,9 +64,15 @@ func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 
 		ctx = context.WithValue(ctx, XRequest, newRequest)
 
-		// cal handler
-		rp := handlerFunc(NewContext(ctx), newRequest)
+		newCtx := NewContext(ctx)
 
+		var rp *Response
+		if !isAuthorized(newCtx, auths) {
+			rp = createUnAuthorizeResponse(newCtx.RequestId(), newRequest.URL)
+		} else {
+			// call handler
+			rp = handlerFunc(newCtx, newRequest)
+		}
 		err = writeResponse(w, rp)
 		if err != nil {
 			m.Logger.Error(fmt.Sprintf("reposne writing error: %+v\n ", err))
@@ -72,14 +80,14 @@ func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc) {
 	})
 }
 
-func (m *Mux) RegisterTopic(topic string, h Handler) {
+func (m *Mux) RegisterTopic(topic string, h Handler, auths ...AuthFunc) {
 	if !strings.HasPrefix(topic, "/") {
 		topic = "/" + topic
 	}
-	m.RegisterJson("POST", topic, h)
+	m.RegisterJson("POST", topic, h, auths...)
 }
 
-func (m *Mux) RegisterJson(method, pattern string, h Handler) {
+func (m *Mux) RegisterJson(method, pattern string, h Handler, auths ...AuthFunc) {
 	topic := extractTopicFromHttpUrl(pattern)
 	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -92,8 +100,14 @@ func (m *Mux) RegisterJson(method, pattern string, h Handler) {
 		}
 
 		ctx = context.WithValue(ctx, XRequest, newRequest)
-
-		rp := handleJsonRequest(NewContext(ctx), newRequest, h)
+		newCtx := NewContext(ctx)
+		var rp *Response
+		if !isAuthorized(newCtx, auths) {
+			rp = createUnAuthorizeResponse(newCtx.RequestId(), newRequest.URL)
+		} else {
+			// call handler
+			rp = handleJsonRequest(newCtx, newRequest, h)
+		}
 		err = writeResponse(w, rp)
 		if err != nil {
 			m.Logger.Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
@@ -391,4 +405,27 @@ func decode(data []byte, vPtr interface{}) (err error) {
 		}
 	}
 	return
+}
+
+func isAuthorized(ctx *Context, auths []AuthFunc) bool {
+	if len(auths) == 0 {
+		return true
+	}
+	for _, f := range auths {
+		if f(ctx) {
+			return true
+		}
+	}
+	return false
+}
+
+func createUnAuthorizeResponse(traceId, url string) *Response {
+	return NewResBuilder().
+		StatusCode(401).
+		BodyJSON(&DefaultJsonError{
+			Message: "Unauthorized",
+			TraceId: traceId,
+			Links:   map[string][]string{"self": {url}},
+		}).
+		Build()
 }
