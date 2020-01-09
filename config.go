@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -43,20 +44,33 @@ func init() {
 	// set default value logging
 	viper.SetDefault("Logging.Format", "logfmt")
 	viper.SetDefault("Logging.Level", "debug")
-	viper.SetDefault("Logging.NoColor", "false")
+	viper.SetDefault("Logging.NoColor", false)
 
 	// nats
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault("Nats.ReadTimeout", 500)
 
+	// map environment variables to settings
+	allKeys := viper.AllKeys()
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		key := strings.ToLower(pair[0])
+		val := pair[1]
+		for _, k := range allKeys {
+			if key == k {
+				viper.Set(k, val)
+			}
+		}
+	}
 	settings := viper.AllSettings()
-	err = mapstructure.Decode(settings["Nats"], &natConfig)
+	err = mapstructure.Decode(settings["nats"], &natConfig)
+	fmt.Println("nats config = ", natConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
 		os.Exit(1)
 	}
 
-	err = mapstructure.Decode(settings["Logging"], &logConfig)
+	err = mapstructure.Decode(settings["logging"], &logConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal logging config error %+v", err))
 	}
