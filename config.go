@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/nats-io/nats.go"
 
 	"logur.dev/logur"
@@ -47,13 +49,14 @@ func init() {
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault("Nats.ReadTimeout", 500)
 
-	err = viper.UnmarshalKey("Nats", &natConfig)
+	settings := viper.AllSettings()
+	err = mapstructure.Decode(settings["Nats"], &natConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
 		os.Exit(1)
 	}
 
-	err = viper.UnmarshalKey("Logging", &logConfig)
+	err = mapstructure.Decode(settings["Logging"], &logConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal logging config error %+v", err))
 	}
