@@ -33,7 +33,7 @@ func TestGetRequest(t *testing.T) {
 						c.PathParams(),
 					}).
 					Build()
-			}, titan.Secured("gdjha", " sdasd", "sdasd"))
+			}, titan.IsAnonymous())
 		}),
 	)
 
@@ -112,14 +112,14 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 					Id:       c.PathParams()["id"],
 					FullName: fmt.Sprintf("%s %s", rq.FirstName, rq.LastName),
 				}, nil
-			}, titan.Secured("admin"))
+			}, titan.IsAnonymous())
 		}),
 	)
 
 	go func() { server.Start() }()
 
 	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 	defer server.Stop()
 
 	//2. client request it
