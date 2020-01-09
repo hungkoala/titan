@@ -51,17 +51,7 @@ func init() {
 	viper.SetDefault("Nats.ReadTimeout", 500)
 
 	// map environment variables to settings
-	allKeys := viper.AllKeys()
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		key := strings.ToLower(pair[0])
-		val := pair[1]
-		for _, k := range allKeys {
-			if key == k {
-				viper.Set(k, val)
-			}
-		}
-	}
+	AutoLoadEnvironmentVariables()
 	settings := viper.AllSettings()
 	err = mapstructure.Decode(settings["nats"], &natConfig)
 	fmt.Println("nats config = ", natConfig)
@@ -145,4 +135,19 @@ func GetDefaultClient() *Client {
 	mux.Unlock()
 
 	return defaultClient
+}
+
+func AutoLoadEnvironmentVariables() {
+	// map environment variables to settings
+	allKeys := viper.AllKeys()
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		key := strings.ToLower(pair[0])
+		val := pair[1]
+		for _, k := range allKeys {
+			if key == k {
+				viper.Set(k, val)
+			}
+		}
+	}
 }
