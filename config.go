@@ -47,7 +47,7 @@ func init() {
 	viper.SetDefault("Logging.NoColor", false)
 
 	// nats
-	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
+	viper.SetDefault("Nats.Servers", "")
 	viper.SetDefault("Nats.ReadTimeout", 500)
 
 	// map environment variables to settings
@@ -140,14 +140,17 @@ func GetDefaultClient() *Client {
 func AutoLoadEnvironmentVariables() {
 	// map environment variables to settings
 	allKeys := viper.AllKeys()
+	keyMap := map[string]bool{}
+	for _, k := range allKeys {
+		keyMap[k] = true
+	}
+
 	for _, e := range os.Environ() {
 		pair := strings.SplitN(e, "=", 2)
 		key := strings.ToLower(pair[0])
 		val := pair[1]
-		for _, k := range allKeys {
-			if key == k {
-				viper.Set(k, val)
-			}
+		if _, ok := keyMap[key]; ok {
+			viper.Set(key, val)
 		}
 	}
 }
