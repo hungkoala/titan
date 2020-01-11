@@ -177,3 +177,20 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 	return rp, nil
 }
+
+func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error {
+	var p Message
+
+	userInfoJson := ctx.UserInfoJson()
+	if userInfoJson != "" {
+		p.Headers.Set(XUserInfo, ctx.UserInfoJson())
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	p.Body = b
+
+	return srv.conn.Conn.Publish(subject, p)
+}

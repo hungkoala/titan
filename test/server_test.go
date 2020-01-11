@@ -259,3 +259,42 @@ func TestDefaultHandlers(t *testing.T) {
 }
 
 // todo: should create more test cases relate to exception/validation handling
+
+type TestBody struct {
+	Msg string `json:"msg"`
+}
+
+func TestMessageSubscriber(t *testing.T) {
+	ctx := titan.NewContext(context.Background())
+	client := titan.GetDefaultClient()
+	var tb TestBody
+	var perr error
+	var serr error
+
+	//1. setup server
+	server := titan.NewServer("api.service.test",
+		titan.Subscribe(func (ms *titan.MessageSubscriber) {
+			ms.Register("test", func(p *titan.Message) error {
+				_, serr = p.Parse(&tb)
+				if serr != nil {
+					return serr
+				}
+				return nil
+			})
+		}),
+	)
+
+	go func() { server.Start() }()
+
+	// wait for server ready
+	time.Sleep(5 * time.Millisecond)
+	defer server.Stop()
+
+	//2. test publish
+	perr = client.Publish(ctx, "test", TestBody{Msg: "test msg"})
+	time.Sleep(5 * time.Millisecond)
+
+	require.Nil(t, perr)
+	require.Nil(t, perr)
+	require.EqualValues(t, "test msg", tb.Msg)
+}

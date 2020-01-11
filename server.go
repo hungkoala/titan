@@ -25,9 +25,10 @@ type Option func(*Options) error
 
 // Options can be used to create a customized connection.
 type Options struct {
-	queue  string
-	config *NatsConfig
-	router Router
+	queue             string
+	config            *NatsConfig
+	router            Router
+	messageSubscriber *MessageSubscriber
 }
 
 func Queue(queue string) Option {
@@ -51,6 +52,13 @@ func Routes(r func(Router)) Option {
 	}
 }
 
+func Subscribe(r func(*MessageSubscriber)) Option {
+	return func(o *Options) error {
+		r(o.messageSubscriber)
+		return nil
+	}
+}
+
 func NewServer(subject string, options ...Option) *Server {
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
 	config := GetNatsConfig()
@@ -63,9 +71,10 @@ func NewServer(subject string, options ...Option) *Server {
 	optionsWithDefault := append(options, Routes(defaultHandlers.Routes))
 
 	opts := Options{
-		config: config,
-		router: NewRouter(r),
-		queue:  "workers",
+		config:            config,
+		router:            NewRouter(r),
+		queue:             "workers",
+		messageSubscriber: NewMessageSubscriber(logger),
 	}
 
 	for _, opt := range optionsWithDefault {
@@ -77,11 +86,12 @@ func NewServer(subject string, options ...Option) *Server {
 		}
 	}
 	return &Server{
-		subject: subject,
-		queue:   opts.queue,
-		config:  opts.config,
-		handler: opts.router,
-		logger:  log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
+		subject:           subject,
+		queue:             opts.queue,
+		config:            opts.config,
+		handler:           opts.router,
+		messageSubscriber: opts.messageSubscriber,
+		logger:            log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
 	}
 }
 
@@ -94,12 +104,13 @@ func (srv *Server) Start() {
 }
 
 type Server struct {
-	subject string
-	queue   string
-	config  *NatsConfig
-	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
-	logger  logur.Logger
-	stop    chan interface{}
+	subject           string
+	queue             string
+	config            *NatsConfig
+	handler           http.Handler // handler to invoke, http.DefaultServeMux if nil
+	messageSubscriber *MessageSubscriber
+	logger            logur.Logger
+	stop              chan interface{}
 }
 
 func (srv *Server) start() error {
@@ -164,6 +175,11 @@ func (srv *Server) start() error {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
 
+	err = srv.messageSubscriber.subscribe(conn.Conn)
+	if err != nil {
+		return errors.WithMessage(err, "Nats serve error ")
+	}
+
 	// Handle SIGINT and SIGTERM.
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
@@ -178,6 +194,7 @@ func (srv *Server) start() error {
 		if er != nil {
 			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
 		}
+		srv.messageSubscriber.unsubscribe()
 		conn.Conn.Close()
 	}
 
