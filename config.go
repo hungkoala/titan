@@ -47,7 +47,7 @@ func init() {
 	viper.SetDefault("Logging.NoColor", false)
 
 	// nats
-	viper.SetDefault("Nats.Servers", "")
+	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault("Nats.ReadTimeout", 500)
 
 	// map environment variables to settings
