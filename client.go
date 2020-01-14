@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -179,7 +180,11 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 }
 
 func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error {
-	var p Message
+	var p = Message{
+		Headers: http.Header{},
+	}
+
+	p.Headers.Set(XRequestId, ctx.RequestId())
 
 	userInfoJson := ctx.UserInfoJson()
 	if userInfoJson != "" {

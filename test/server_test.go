@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"gitlab.com/silenteer/titan"
 
@@ -37,10 +35,8 @@ func TestGetRequest(t *testing.T) {
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. client request it
@@ -78,10 +74,8 @@ func TestRegisterTopic(t *testing.T) {
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(1 * time.Second)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. client request it
@@ -116,10 +110,8 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(1 * time.Second)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. client request it
@@ -162,10 +154,8 @@ func TestValidator(t *testing.T) {
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. client request it
@@ -196,10 +186,8 @@ func TestAuthorization(t *testing.T) {
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. client request it
@@ -223,10 +211,8 @@ func TestDefaultHandlers(t *testing.T) {
 	//1. setup server
 	server := titan.NewServer("api.service.test")
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
 	defer server.Stop()
 
 	//2. test health endPoint
@@ -272,27 +258,29 @@ func TestMessageSubscriber(t *testing.T) {
 	var serr error
 
 	//1. setup server
+	messageReceived := make(chan interface{})
 	server := titan.NewServer("api.service.test",
 		titan.Subscribe(func (ms *titan.MessageSubscriber) {
-			ms.Register("test", func(p *titan.Message) error {
+			ms.Register("test", "api.service.test", func(p *titan.Message) error {
+				close(messageReceived)
+
 				_, serr = p.Parse(&tb)
 				if serr != nil {
 					return serr
 				}
+
 				return nil
 			})
 		}),
 	)
 
-	go func() { server.Start() }()
-
-	// wait for server ready
-	time.Sleep(5 * time.Millisecond)
-	defer server.Stop()
+	testServer := NewTestServer(t, server)
+	testServer.Start()
+	defer testServer.Stop()
 
 	//2. test publish
 	perr = client.Publish(ctx, "test", TestBody{Msg: "test msg"})
-	time.Sleep(5 * time.Millisecond)
+	WaitOrTimedOut(t, messageReceived, "Message not received")
 
 	require.Nil(t, perr)
 	require.Nil(t, perr)

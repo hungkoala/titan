@@ -11,6 +11,7 @@ type MessageHandler func(*Message) error
 
 type Registration struct {
 	Subject string
+	Queue string
 	Handler MessageHandler
 }
 
@@ -24,16 +25,17 @@ func NewMessageSubscriber(logger logur.Logger) *MessageSubscriber {
 	return &MessageSubscriber{logger: logger}
 }
 
-func (s *MessageSubscriber) Register(subject string, handler MessageHandler) {
+func (s *MessageSubscriber) Register(subject string, queue string, handler MessageHandler) {
 	s.registrations = append(s.registrations, &Registration{
 		Subject: subject,
+		Queue: queue,
 		Handler: handler,
 	})
 }
 
 func (s *MessageSubscriber) subscribe(conn *nats.EncodedConn) error {
 	for index, registration := range s.registrations {
-		sub, err := conn.Subscribe(registration.Subject, registration.Handler)
+		sub, err := conn.QueueSubscribe(registration.Subject, registration.Queue, registration.Handler)
 		if err != nil {
 			return errors.WithMessagef(err, "Nats subscription [%d] error ", index)
 		}

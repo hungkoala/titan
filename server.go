@@ -92,6 +92,7 @@ func NewServer(subject string, options ...Option) *Server {
 		handler:           opts.router,
 		messageSubscriber: opts.messageSubscriber,
 		logger:            log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
+		Started:           make(chan interface{}, 1),
 	}
 }
 
@@ -111,6 +112,7 @@ type Server struct {
 	messageSubscriber *MessageSubscriber
 	logger            logur.Logger
 	stop              chan interface{}
+	Started           chan interface{}
 }
 
 func (srv *Server) start() error {
@@ -180,6 +182,11 @@ func (srv *Server) start() error {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
 
+	err = conn.Conn.Flush()
+	if err != nil {
+		srv.logger.Error(fmt.Sprintf("Subscriptions flush error: %+v\n ", err))
+	}
+
 	// Handle SIGINT and SIGTERM.
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
@@ -198,6 +205,7 @@ func (srv *Server) start() error {
 		conn.Conn.Close()
 	}
 
+	close(srv.Started)
 	srv.logger.Info("Server started")
 
 	select {
