@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -106,8 +105,11 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	t := time.Now()
 	logger := ctx.Logger()
+
 	// copy info inside context
-	rq.Headers.Set(XRequestId, ctx.RequestId())
+	if ctx.RequestId() != "" {
+		rq.Headers.Set(XRequestId, ctx.RequestId())
+	}
 
 	//todo: copy authentication here
 	userInfoJson := ctx.UserInfoJson()
@@ -180,15 +182,8 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 }
 
 func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error {
-	var p = Message{
-		Headers: http.Header{},
-	}
-
-	p.Headers.Set(XRequestId, ctx.RequestId())
-
-	userInfoJson := ctx.UserInfoJson()
-	if userInfoJson != "" {
-		p.Headers.Set(XUserInfo, ctx.UserInfoJson())
+	p := Message{
+		Headers: ctx.Request().Headers,
 	}
 
 	b, err := json.Marshal(body)

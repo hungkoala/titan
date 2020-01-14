@@ -198,7 +198,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 				Build()
 		}
 
-		if _, ok := err.(*validator.ValidationErrors); !ok {
+		if _, ok := err.(*validator.ValidationErrors); ok {
 			var validationErrors []ValidationError
 
 			for _, err := range err.(validator.ValidationErrors) {
@@ -228,15 +228,21 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 			resp := clientErr.Response
 			if resp == nil {
 				logger.Error("Missing Response inside ClientResponseError")
+				builder.StatusCode(500)
+			} else {
+				builder.StatusCode(resp.StatusCode)
+				if resp.Body != nil && len(resp.Body) > 0 {
+					builder.Body(resp.Body)
+				} else {
+					builder.
+						BodyJSON(&DefaultJsonError{
+							Message: clientErr.Message,
+							Links:   map[string][]string{"self": {r.URL}},
+							TraceId: ctx.RequestId(),
+						})
+				}
 			}
-			builder.
-				StatusCode(resp.StatusCode). //bad request
-				BodyJSON(&DefaultJsonError{
-					Message: clientErr.Message,
-					Links:   map[string][]string{"self": {r.URL}},
-					TraceId: ctx.RequestId(),
-				}).
-				Build()
+			return builder.Build()
 		}
 
 		// error is a server response type

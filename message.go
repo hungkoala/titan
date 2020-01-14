@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 type Message struct {
@@ -38,6 +39,8 @@ func (r *Message) context() (*Context, error) {
 			ctx = context.WithValue(ctx, XUserInfo, &userInfo)
 		}
 	}
+
+	ctx = context.WithValue(ctx, XRequestId, r.Headers.Get(XRequestId))
 
 	return NewContext(ctx), nil
 }
