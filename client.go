@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -183,8 +184,11 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error {
 	p := Message{
-		Headers: ctx.Request().Headers,
+		Headers: http.Header{},
 	}
+
+	p.Headers.Set(XRequestId, ctx.RequestId())
+	p.Headers.Set(XUserInfo, ctx.UserInfoJson())
 
 	b, err := json.Marshal(body)
 	if err != nil {

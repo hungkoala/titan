@@ -170,10 +170,9 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
-
-		// see old code CommonExceptionHandler.java
-		comEx, ok := err.(*CommonException)
-		if ok {
+		switch err.(type) {
+		case *CommonException: // see old code CommonExceptionHandler.java
+			comEx, _ := err.(*CommonException)
 			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))
 			return builder.
 				StatusCode(400). //bad request
@@ -184,10 +183,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 					TraceId:     ctx.RequestId(),
 				}).
 				Build()
-		}
-
-		// validation error ConstraintViolationExceptionHandler.java
-		if _, ok := err.(*validator.InvalidValidationError); ok {
+		case *validator.InvalidValidationError: // validation error ConstraintViolationExceptionHandler.java
 			return builder.
 				StatusCode(500).
 				BodyJSON(&DefaultJsonError{
@@ -196,9 +192,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 					Links:   map[string][]string{"self": {r.URL}},
 				}).
 				Build()
-		}
-
-		if _, ok := err.(*validator.ValidationErrors); ok {
+		case validator.ValidationErrors, *validator.ValidationErrors:
 			var validationErrors []ValidationError
 
 			for _, err := range err.(validator.ValidationErrors) {
@@ -221,10 +215,8 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 					ServerError:      "Bad Request",
 				}).
 				Build()
-		}
-
-		// implement HttpClientResponseException, see ServiceResponseExceptionHandler.java
-		if clientErr, ok := err.(*ClientResponseError); ok {
+		case *ClientResponseError:
+			clientErr, _ := err.(*ClientResponseError)
 			resp := clientErr.Response
 			if resp == nil {
 				logger.Error("Missing Response inside ClientResponseError")
@@ -243,27 +235,26 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 				}
 			}
 			return builder.Build()
-		}
-
-		// error is a server response type
-		if serverError, ok := err.(*ServerResponseError); ok {
+		case *ServerResponseError:
+			// error is a server response type
+			serverError, _ := err.(*ServerResponseError)
 			return builder.
 				StatusCode(serverError.Status).
 				Body(serverError.Body).
 				Build()
+		default:
+			// default all error will come here, see InternalErrorExceptionHandler.java
+			return builder.
+				StatusCode(500).
+				BodyJSON(&DefaultJsonError{
+					Message:     err.Error(),
+					ServerError: "SOME_THINGS_WENT_WRONG",
+					TraceId:     ctx.RequestId(),
+					Links:       map[string][]string{"self": {r.URL}},
+				}).
+				Build()
 		}
-
-		// default all error will come here, see InternalErrorExceptionHandler.java
-		return builder.
-			StatusCode(500).
-			BodyJSON(&DefaultJsonError{
-				Message:     err.Error(),
-				ServerError: "SOME_THINGS_WENT_WRONG",
-				TraceId:     ctx.RequestId(),
-				Links:       map[string][]string{"self": {r.URL}},
-			}).
-			Build()
-	}
+	} // else
 
 	if ret == nil {
 		return builder.
