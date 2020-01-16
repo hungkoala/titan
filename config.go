@@ -48,13 +48,13 @@ func init() {
 
 	// nats
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
-	viper.SetDefault("Nats.ReadTimeout", 500)
+	viper.SetDefault("Nats.ReadTimeout", 5*1000)
 
 	// map environment variables to settings
 	AutoLoadEnvironmentVariables()
 	settings := viper.AllSettings()
 	err = mapstructure.Decode(settings["nats"], &natConfig)
-	fmt.Println("nats config = ", natConfig)
+	fmt.Printf("nats config = %+v \n", natConfig)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
 		os.Exit(1)
