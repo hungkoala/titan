@@ -15,7 +15,7 @@ const (
 	XPathParams                   = "X-PATH-PARAMS"
 	XQueryParams                  = "X-QUERY-PARAMS"
 	XRequest                      = "X-REQUEST"
-	XUserInfo                     = "silentium.USER" // how to remove this value
+	XUserInfo                     = "X-Silentium-User" // how to remove this value
 	MULTI_TENANT_CARE_PROVIDER_ID = "multiTenantCareProviderId"
 	XCareProviderId               = "X-Care-Provider-Id"
 	contentType                   = "Content-Type"
