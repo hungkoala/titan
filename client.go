@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,7 +39,6 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		receive = nil
 		return nil
 	}
-
 	// very very stupid code, keep it here because micronaut used it.  please return json instead
 	switch v := receive.(type) {
 	case *string:
@@ -46,49 +46,49 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		ptr := receive.(*string)
 		*ptr = string(msg.Body)
 	case *int:
-		result, err := strconv.ParseInt(string(msg.Body), 10, 0)
+		result, err := strconv.ParseInt(cleanString(msg.Body), 10, 0)
 		if err != nil {
 			return errors.WithMessage(err, "paring integer error")
 		}
 		ptr := receive.(*int)
 		*ptr = int(result)
 	case *int32:
-		result, err := strconv.ParseInt(string(msg.Body), 10, 32)
+		result, err := strconv.ParseInt(cleanString(msg.Body), 10, 32)
 		if err != nil {
 			return errors.WithMessage(err, "paring int32 error")
 		}
 		ptr := receive.(*int32)
 		*ptr = int32(result)
 	case *int64:
-		result, err := strconv.ParseInt(string(msg.Body), 10, 64)
+		result, err := strconv.ParseInt(cleanString(msg.Body), 10, 64)
 		if err != nil {
 			return errors.WithMessage(err, "paring int64 error")
 		}
 		ptr := receive.(*int64)
 		*ptr = result
 	case *uint:
-		result, err := strconv.ParseUint(string(msg.Body), 10, 0)
+		result, err := strconv.ParseUint(cleanString(msg.Body), 10, 0)
 		if err != nil {
 			return errors.WithMessage(err, "paring uint error")
 		}
 		ptr := receive.(*uint)
 		*ptr = uint(result)
 	case *float64:
-		result, err := strconv.ParseFloat(string(msg.Body), 64)
+		result, err := strconv.ParseFloat(cleanString(msg.Body), 64)
 		if err != nil {
 			return errors.WithMessage(err, "paring float64 error")
 		}
 		ptr := receive.(*float64)
 		*ptr = result
 	case *float32:
-		result, err := strconv.ParseFloat(string(msg.Body), 32)
+		result, err := strconv.ParseFloat(cleanString(msg.Body), 32)
 		if err != nil {
 			return errors.WithMessage(err, "paring float32 error")
 		}
 		ptr := receive.(*float32)
 		*ptr = float32(result)
 	case *bool:
-		result, err := strconv.ParseBool(string(msg.Body))
+		result, err := strconv.ParseBool(cleanString(msg.Body))
 		if err != nil {
 			return errors.WithMessage(err, "paring bool error")
 		}
@@ -101,6 +101,17 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 		}
 	}
 	return nil
+}
+
+// cleanString clean \n in the last of string to avoid error when using strconv.Parse
+// when lib marshal byte to json, it adds '\n\ in the value which causes error for strconv.Parse.
+//
+func cleanString(str []byte) string {
+	s := string(str)
+	if strings.HasSuffix(s, "\n") {
+		return s[0 : len(s)-1]
+	}
+	return s
 }
 
 func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
