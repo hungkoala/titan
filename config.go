@@ -48,7 +48,7 @@ func init() {
 
 	// nats
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
-	viper.SetDefault("Nats.ReadTimeout", 5*1000)
+	viper.SetDefault("Nats.ReadTimeout", 15*1000)
 
 	// map environment variables to settings
 	AutoLoadEnvironmentVariables()
