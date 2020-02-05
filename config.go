@@ -48,7 +48,7 @@ func init() {
 
 	// nats
 	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
-	viper.SetDefault("Nats.ReadTimeout", 15*1000)
+	viper.SetDefault("Nats.ReadTimeout", 15)
 
 	// map environment variables to settings
 	AutoLoadEnvironmentVariables()
@@ -69,6 +69,10 @@ func init() {
 type NatsConfig struct {
 	Servers     string
 	ReadTimeout int
+}
+
+func (c NatsConfig) GetReadTimeoutDuration() time.Duration {
+	return time.Duration(c.ReadTimeout) * time.Second
 }
 
 func GetNatsConfig() *NatsConfig {
