@@ -175,7 +175,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		} else {
 			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500}
 		}
-		return nil, &ClientResponseError{Message: "Nats Client Request Timeout", Response: rpErr, Cause: err}
+		return nil, &ClientResponseError{Message: err.Error(), Response: rpErr, Cause: err}
 	}
 
 	if rp.StatusCode >= 400 {
