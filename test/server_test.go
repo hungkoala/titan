@@ -260,7 +260,7 @@ func TestMessageSubscriber(t *testing.T) {
 	//1. setup server
 	messageReceived := make(chan interface{})
 	server := titan.NewServer("api.service.test",
-		titan.Subscribe(func (ms *titan.MessageSubscriber) {
+		titan.Subscribe(func(ms *titan.MessageSubscriber) {
 			ms.Register("test", "api.service.test", func(p *titan.Message) error {
 				close(messageReceived)
 
@@ -280,7 +280,7 @@ func TestMessageSubscriber(t *testing.T) {
 
 	//2. test publish
 	perr = client.Publish(ctx, "test", TestBody{Msg: "test msg"})
-	WaitOrTimedOut(t, messageReceived, "Message not received")
+	WaitOrTimeout(t, messageReceived, "Message not received")
 
 	require.Nil(t, perr)
 	require.Nil(t, perr)
