@@ -19,7 +19,7 @@ func IsAnonymous() AuthFunc {
 	}
 }
 
-func Secured(roles ...string) AuthFunc {
+func Secured(roles ...Role) AuthFunc {
 	return func(ctx *Context) bool {
 		if len(roles) == 0 {
 			return false
@@ -37,7 +37,7 @@ func Secured(roles ...string) AuthFunc {
 		}
 
 		for _, r := range roles {
-			if r == roleStr {
+			if string(r) == roleStr {
 				return true
 			}
 		}
