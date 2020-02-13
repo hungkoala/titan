@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-playground/validator/v10/non-standard/validators"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -22,6 +23,7 @@ var validate *validator.Validate
 
 func init() {
 	validate = validator.New()
+	validate.RegisterValidation("notblank", validators.NotBlank)
 }
 
 type Handler interface{}
