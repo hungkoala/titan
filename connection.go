@@ -25,11 +25,6 @@ func NewConnection(url string, options ...nats.Option) (*Connection, error) {
 		return nil, errors.WithMessage(err, "Cannot construct JSON encoded connection to NATS")
 	}
 
-	err = ensureGlobalSubscriber(enc)
-	if err != nil {
-		return nil, errors.WithMessage(err, "Cannot ensure that global subscriber has been created and flushed")
-	}
-
 	return &Connection{Conn: enc}, nil
 }
 
@@ -42,16 +37,16 @@ func (srv *Connection) SendRequest(rq *Request, subject string) (*Response, erro
 	return &rp, err
 }
 
-func ensureGlobalSubscriber(conn *nats.EncodedConn) error {
+func (srv *Connection) ensureGlobalSubscriber() error {
 	rq, _ := NewReqBuilder().
 		Get("/some/random/non/existent/path/just/to/ensure/the/global/subscriber/to/be/created").
 		Build()
 
 	var rs interface{}
-	err := conn.Request("pleasedonotuse.thisuglyhackystuff.pleasepleaseplease", rq, &rs, 1*time.Millisecond)
+	err := srv.Conn.Request("pleasedonotuse.thisuglyhackystuff.pleasepleaseplease", rq, &rs, 1*time.Millisecond)
 	if err != nil && err.Error() == "nats: timeout" {
 		// expected error, do nothing
-		return conn.Flush()
+		return srv.Conn.Flush()
 	}
 
 	return err

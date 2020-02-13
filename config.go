@@ -127,6 +127,12 @@ func GetDefaultClient() *Client {
 		os.Exit(1)
 	}
 
+	err = conn.ensureGlobalSubscriber()
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Cannot ensure that global subscriber has been created and flushed: %+v", err))
+		os.Exit(1)
+	}
+
 	go func() {
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
