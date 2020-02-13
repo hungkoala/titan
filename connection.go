@@ -1,6 +1,7 @@
 package titan
 
 import (
+	"fmt"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"time"
@@ -45,7 +46,7 @@ func (srv *Connection) ensureGlobalSubscriber() error {
 	var rs interface{}
 	err := srv.Conn.Request("pleasedonotuse.thisuglyhackystuff.pleasepleaseplease", rq, &rs, 1*time.Millisecond)
 	if err != nil && err.Error() == "nats: timeout" {
-		// expected error, do nothing
+		fmt.Println("Expected nats: timeout while ensure global subscriber")
 		return srv.Conn.Flush()
 	}
 
