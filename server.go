@@ -239,11 +239,10 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				rq.Headers.Set(XRequestId, requestID)
 			}
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
-			go func() {
-				//url := extractLoggablePartsFromUrl(rq.URL)
-				url := extractLoggablePartsFromUrl(rq.URL)
-				logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
-			}()
+
+			//url := extractLoggablePartsFromUrl(rq.URL)
+			url := extractLoggablePartsFromUrl(rq.URL)
+			logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
 
 			defer handlePanic(conn, logWithId, rpSubject)
 
