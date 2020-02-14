@@ -202,6 +202,12 @@ func (srv *Server) start() error {
 			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
 		}
 		srv.messageSubscriber.unsubscribe()
+
+		er = conn.Conn.Flush()
+		if er != nil {
+			srv.logger.Error(fmt.Sprintf("Flush error: %+v\n ", er))
+		}
+
 		conn.Conn.Close()
 	}
 
