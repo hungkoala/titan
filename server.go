@@ -194,7 +194,6 @@ func (srv *Server) start() error {
 	srv.stop = make(chan interface{}, 1)
 
 	cleanUp := func() {
-		srv.stop = nil
 		srv.logger.Info("Server is closing")
 		er := subscription.Unsubscribe()
 		if er != nil {
@@ -210,6 +209,7 @@ func (srv *Server) start() error {
 		conn.Conn.Close()
 
 		close(srv.stop)
+		srv.stop = nil
 	}
 
 	close(srv.Started)
