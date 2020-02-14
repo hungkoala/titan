@@ -229,6 +229,7 @@ func (srv *Server) start() error {
 func (srv *Server) Stop() {
 	if srv != nil && srv.stop != nil {
 		srv.stop <- "stop"
+		<-srv.stop
 	}
 }
 
