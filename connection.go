@@ -2,6 +2,7 @@ package titan
 
 import (
 	"github.com/pkg/errors"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
@@ -33,6 +34,6 @@ func (srv *Connection) SendRequest(rq *Request, subject string) (*Response, erro
 		return nil, errors.New("nats subject cannot be nil")
 	}
 	rp := Response{}
-	err := srv.Conn.Request(subject, rq, &rp, GetNatsConfig().GetReadTimeoutDuration())
+	err := srv.Conn.Request(subject, rq, &rp, GetNatsConfig().GetReadTimeoutDuration()+5*time.Second)
 	return &rp, err
 }
