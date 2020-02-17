@@ -194,15 +194,22 @@ func (srv *Server) start() error {
 	srv.stop = make(chan interface{}, 1)
 
 	cleanUp := func() {
-		close(srv.stop)
-		srv.stop = nil
 		srv.logger.Info("Server is closing")
 		er := subscription.Unsubscribe()
 		if er != nil {
 			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
 		}
 		srv.messageSubscriber.unsubscribe()
+
+		er = conn.Conn.Flush()
+		if er != nil {
+			srv.logger.Error(fmt.Sprintf("Flush error: %+v\n ", er))
+		}
+
 		conn.Conn.Close()
+
+		close(srv.stop)
+		srv.stop = nil
 	}
 
 	close(srv.Started)
@@ -223,6 +230,7 @@ func (srv *Server) start() error {
 func (srv *Server) Stop() {
 	if srv != nil && srv.stop != nil {
 		srv.stop <- "stop"
+		<-srv.stop
 	}
 }
 
@@ -239,11 +247,9 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				rq.Headers.Set(XRequestId, requestID)
 			}
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
-			go func() {
-				//url := extractLoggablePartsFromUrl(rq.URL)
-				url := extractLoggablePartsFromUrl(rq.URL)
-				logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
-			}()
+
+			url := extractLoggablePartsFromUrl(rq.URL)
+			logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
 
 			defer handlePanic(conn, logWithId, rpSubject)
 
