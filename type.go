@@ -25,3 +25,13 @@ func (r Role) String() string {
 type String struct {
 	Value string
 }
+
+func (u *UserInfo) GetSubject() string {
+	if u == nil {
+		return ""
+	}
+	if val, ok := u.Attributes["sub"]; ok {
+		return val.(string)
+	}
+	return ""
+}
