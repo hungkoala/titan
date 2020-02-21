@@ -1,5 +1,9 @@
 package titan
 
+import (
+	"github.com/google/uuid"
+)
+
 type UUID string
 
 func (u UUID) String() string {
@@ -14,6 +18,15 @@ type UserInfo struct {
 	DeviceId        string                 `json:"deviceId"` // uuid format
 	Role            Role                   `json:"role"`
 	Attributes      map[string]interface{} `json:"attributes"`
+}
+
+func (userInfo UserInfo) CareProviderUUID() *uuid.UUID {
+	uuid, _ := uuid.Parse(userInfo.CareProviderId.String())
+	return &uuid
+}
+func (userInfo UserInfo) UserUUID() *uuid.UUID {
+	uuid, _ := uuid.Parse(userInfo.UserId.String())
+	return &uuid
 }
 
 type Role string
