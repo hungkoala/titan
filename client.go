@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +37,9 @@ func (srv *Client) SendAndReceiveJson(ctx *Context, rq *Request, receive interfa
 	}
 
 	if bytes.Equal(msg.Body, null) {
-		receive = nil
+		//implement receive = nil
+		v := reflect.ValueOf(receive)
+		v.Elem().Set(reflect.Zero(v.Elem().Type()))
 		return nil
 	}
 	// very very stupid code, keep it here because micronaut used it.  please return json instead
