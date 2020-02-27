@@ -16,7 +16,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
-	"gitlab.com/silenteer/titan/log"
+	"gitlab.com/silenteer-oss/titan/log"
 	"logur.dev/logur"
 )
 
@@ -291,7 +291,6 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 				)
 			}()
-
 			handler.ServeHTTP(rp, rq)
 			err = enc.Publish(rpSubject, rp)
 

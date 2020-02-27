@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/pkg/errors"
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 )
 
 type CompanyClient struct {

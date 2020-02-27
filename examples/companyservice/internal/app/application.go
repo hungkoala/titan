@@ -1,7 +1,7 @@
 package app
 
 import (
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 )
 
 func NewServer() *titan.Server {

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 )
 
 type CompanyDto struct {

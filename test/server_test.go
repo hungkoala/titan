@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 
 	"github.com/stretchr/testify/assert"
 )

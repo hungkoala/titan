@@ -144,7 +144,6 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 	logger.Debug("Nats client sending request", map[string]interface{}{
 		"url": logUrl, "subject": subject, "id": ctx.RequestId(), "method": rq.Method})
-
 	rp, err := srv.request(ctx, rq, subject)
 
 	// just log event

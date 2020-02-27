@@ -15,7 +15,7 @@ import (
 
 	"logur.dev/logur"
 
-	"gitlab.com/silenteer/titan/log"
+	"gitlab.com/silenteer-oss/titan/log"
 
 	"github.com/spf13/viper"
 )
