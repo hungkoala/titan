@@ -12,7 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/testify v1.5.1
-	gitlab.com/silenteer-oss/titan v1.0.23
+
 	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	logur.dev/adapter/logrus v0.4.1
 	logur.dev/logur v0.16.2
