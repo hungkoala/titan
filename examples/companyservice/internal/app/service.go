@@ -3,7 +3,7 @@ package app
 import (
 	"errors"
 
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 )
 
 type CompanyService struct {

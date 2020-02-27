@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 
-	"gitlab.com/silenteer/titan/examples/companyservice/api"
+	"gitlab.com/silenteer-oss/titan/examples/companyservice/api"
 
-	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
+	"gitlab.com/silenteer-oss/titan/examples/companyservice/internal/app"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"gitlab.com/silenteer/titan"
+	"gitlab.com/silenteer-oss/titan"
 	"sync"
 	"testing"
 	"time"

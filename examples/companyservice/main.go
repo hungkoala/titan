@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.com/silenteer/titan/examples/companyservice/internal/app"
+	"gitlab.com/silenteer-oss/titan/examples/companyservice/internal/app"
 )
 
 func main() {
