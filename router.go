@@ -172,6 +172,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
+		err = UnwrapErr(err)
 		switch err.(type) {
 		case *CommonException: // see old code CommonExceptionHandler.java
 			comEx, _ := err.(*CommonException)
@@ -237,13 +238,6 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 				}
 			}
 			return builder.Build()
-		case *ServerResponseError:
-			// error is a server response type
-			serverError, _ := err.(*ServerResponseError)
-			return builder.
-				StatusCode(serverError.Status).
-				Body(serverError.Body).
-				Build()
 		default:
 			// default all error will come here, see InternalErrorExceptionHandler.java
 			return builder.

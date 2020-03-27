@@ -2,15 +2,14 @@ package test
 
 import (
 	"context"
+	"emperror.dev/errors"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/silenteer-oss/titan"
 	"os"
 	"testing"
-
-	"gitlab.com/silenteer-oss/titan"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type GetResult struct {
@@ -285,4 +284,34 @@ func TestMessageSubscriber(t *testing.T) {
 	require.Nil(t, perr)
 	require.Nil(t, perr)
 	require.EqualValues(t, "test msg", tb.Msg)
+}
+
+func TestUnwrapError(t *testing.T) {
+	//1. setup server
+	server := titan.NewServer("api.service.test",
+		titan.Routes(func(r titan.Router) {
+			r.RegisterJson("GET", "/api/service/test/error", func(c *titan.Context) (*titan.Response, error) {
+				err := &titan.ClientResponseError{
+					Message:  "Client Response Error ",
+					Response: nil,
+					Cause:    errors.New("inner error"),
+				}
+				return nil, errors.WithMessage(errors.WithMessage(err, ""), "")
+			})
+		}),
+	)
+	testServer := NewTestServer(t, server)
+	testServer.Start()
+	defer server.Stop()
+
+	//2. client request it
+	request, _ := titan.NewReqBuilder().Get("/api/service/test/error").Build()
+
+	_, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)
+	require.Error(t, err, "Sending Nats request error")
+
+	_, ok := err.(*titan.ClientResponseError)
+	if !ok {
+		t.Error("return error is not ClientResponseError")
+	}
 }
