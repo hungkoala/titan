@@ -2,6 +2,7 @@ package titan
 
 import (
 	"fmt"
+	"github.com/go-playground/validator"
 	"net/http"
 	"runtime"
 )
@@ -126,4 +127,28 @@ type ServerResponseError struct {
 
 func (s *ServerResponseError) Error() string {
 	return fmt.Sprintf("Server Response Error status %d", s.Status)
+}
+
+type causer interface {
+	Cause() error
+}
+
+func UnwrapErr(err error) error {
+Loop:
+	for err != nil {
+		cause, ok := err.(causer)
+		if !ok {
+			break Loop
+		}
+		err = cause.Cause()
+		switch err.(type) {
+		case *CommonException,
+			*ClientResponseError,
+			*validator.InvalidValidationError,
+			validator.ValidationErrors,
+			*validator.ValidationErrors:
+			break Loop
+		}
+	}
+	return err
 }
