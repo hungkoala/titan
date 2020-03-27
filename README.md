@@ -9,3 +9,5 @@ export GOPRIVATE="gitlab.com/silenteer,gitlab.com/silenteer-oss,git.tutum.dev/me
 
 Check document at 
 https://www.notion.so/silenteer/b9208343cebe47cd9544beb91d045ef4?v=7a6f0c1f2b8f4732800a04270bee0b21&p=89e4dcadaa66421d9238536d358328e9
+
+test
