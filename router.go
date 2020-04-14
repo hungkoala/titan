@@ -174,11 +174,26 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 		err = UnwrapErr(err)
 		switch err.(type) {
+		case *ServerError, IServerError:
+			comEx, _ := err.(IServerError)
+			logger.Error(fmt.Sprintf("IServerError error: %s ", comEx.Error()))
+			return builder.
+				StatusCode(400). //bad request
+				BodyJSON(&DefaultJsonError{
+					Links:       map[string][]string{"self": {r.URL}},
+					TraceId:     ctx.RequestId(),
+					Messages: comEx.GetMessages(),
+				}).
+				Build()
 		case *CommonException: // see old code CommonExceptionHandler.java
 			comEx, _ := err.(*CommonException)
 			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))
+			statusCode := comEx.Status
+			if comEx.Status == 0 {
+				statusCode = 400
+			}
 			return builder.
-				StatusCode(400). //bad request
+				StatusCode(statusCode). //bad request
 				BodyJSON(&DefaultJsonError{
 					Message:     comEx.Message,
 					ServerError: comEx.ServerError,

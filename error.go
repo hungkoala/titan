@@ -3,8 +3,7 @@ package titan
 import (
 	"fmt"
 	"github.com/go-playground/validator"
-	"net/http"
-	"runtime"
+	"strings"
 )
 
 /**
@@ -12,25 +11,20 @@ import (
  * see RFC 2119.
  */
 // make it compatible old micronaut code, it's a subject to change latter
-type JsonError struct {
-	Message  string                 `json:"message"`
-	LogRef   string                 `json:"logref"`
-	Path     string                 `json:"path"`
-	Links    map[string][]string    `json:"_links"`
-	Embedded map[string][]JsonError `json:"_embedded"`
-}
-
 // see HttpClientResponseExceptionHandler.java
 type DefaultJsonError struct {
-	Message  string                 `json:"message"`
-	LogRef   string                 `json:"logref"`
-	Path     string                 `json:"path"`
-	Links    map[string][]string    `json:"_links"`
-	Embedded map[string][]JsonError `json:"_embedded"`
+	Message  string                   `json:"message"` // deprecated, wait for client migration, it will be deleted
+	LogRef   string                   `json:"logref"`
+	Path     string                   `json:"path"`
+	Links    map[string][]string      `json:"_links"`
+	Embedded map[string][]interface{} `json:"_embedded"`
 
 	TraceId          string            `json:"traceId"`
 	ValidationErrors []ValidationError `json:"validationErrors"`
-	ServerError      string            `json:"serverError"`
+	ServerError      string            `json:"serverError"` // deprecated, wait for client migration, it will be deleted
+
+	// new errors message that supports multiple error messages
+	Messages []ErrorMessage `json:"messages"`
 }
 
 type ValidationError struct {
@@ -41,7 +35,45 @@ type ValidationError struct {
 	Param     string      `json:"param"`
 }
 
+type ErrorMessage struct {
+	Key   string      `json:"key"`
+	Param interface{} `json:"param"`
+}
+
+func (e *ErrorMessage) String() string {
+	return fmt.Sprintf("%s,%s ", e.Key, e.Param)
+}
+
+type IServerError interface {
+	Error() string
+	GetMessages() []ErrorMessage
+}
+
+type ServerError struct {
+	Messages []ErrorMessage `json:"messages"`
+}
+
+func (s *ServerError) Error() string {
+	var messages []string
+	for _, m := range s.Messages {
+		messages = append(messages, m.String())
+	}
+	return strings.Join(messages, ", ")
+}
+
+func (s *ServerError) GetMessages() []ErrorMessage {
+	return s.Messages
+}
+
+func NewServerError(key string, param interface{}) *ServerError {
+	message:=ErrorMessage{Key:key, Param: param}
+	errors  :=  []ErrorMessage{message}
+	return &ServerError{errors}
+}
+
+//----------------------------------------------------------------------------------------------
 // mapped from HttpClientResponseException.java
+// Error when invoke another microservices
 type ClientResponseError struct {
 	Message  string
 	Response *Response
@@ -56,29 +88,19 @@ func (h *ClientResponseError) Error() string {
 	return h.Message
 }
 
+//----------------------------------------------------------------------------------------------
 // ----------- copy from old micronaut  infrastructure.exception
-// stack represents a stack of program counters.
-type stack []uintptr
-
-func callers() *stack {
-	const depth = 32
-	var pcs [depth]uintptr
-	n := runtime.Callers(3, pcs[:])
-	var st stack = pcs[0:n]
-	return &st
-}
-
 // see CommonException.java
+// Deprecated: use ServerError instead).
 type CommonException struct {
+	Status      int // http status
 	Message     string
 	ServerError string
-	*stack
 }
 
 func NewCommonException(serverError string) *CommonException {
 	return &CommonException{
 		ServerError: serverError,
-		stack:       callers(),
 	}
 }
 
@@ -97,7 +119,6 @@ func NewRecordDeleteFailedException(entityType string, id UUID, serverError stri
 		CommonException: &CommonException{
 			ServerError: serverError,
 			Message:     message,
-			stack:       callers(),
 		},
 	}
 }
@@ -113,21 +134,11 @@ func NewRecordNotFoundException(entityType, id, serverError string) *RecordNotFo
 		CommonException: &CommonException{
 			ServerError: serverError,
 			Message:     message,
-			stack:       callers(),
 		},
 	}
 }
 
-//// --------------- ServerResponseError -------
-type ServerResponseError struct {
-	Status  int
-	Body    []byte
-	Headers http.Header
-}
-
-func (s *ServerResponseError) Error() string {
-	return fmt.Sprintf("Server Response Error status %d", s.Status)
-}
+//----------------------------------------------------------------------------------------------
 
 type causer interface {
 	Cause() error
@@ -146,7 +157,8 @@ Loop:
 			*ClientResponseError,
 			*validator.InvalidValidationError,
 			validator.ValidationErrors,
-			*validator.ValidationErrors:
+			*validator.ValidationErrors,
+			*ServerError, IServerError:
 			break Loop
 		}
 	}
