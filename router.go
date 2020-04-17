@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-playground/validator/v10/non-standard/validators"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
+
+	"github.com/go-playground/validator/v10/non-standard/validators"
 
 	"github.com/go-playground/validator/v10"
 
@@ -23,7 +24,7 @@ var validate *validator.Validate
 
 func init() {
 	validate = validator.New()
-	validate.RegisterValidation("notblank", validators.NotBlank)
+	_ = validate.RegisterValidation("notblank", validators.NotBlank)
 }
 
 type Handler interface{}
@@ -173,20 +174,9 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 	if err != nil {
 		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 		err = UnwrapErr(err)
-		switch err.(type) {
-		case *ServerError, IServerError:
-			comEx, _ := err.(IServerError)
-			logger.Error(fmt.Sprintf("IServerError error: %s ", comEx.Error()))
-			return builder.
-				StatusCode(400). //bad request
-				BodyJSON(&DefaultJsonError{
-					Links:       map[string][]string{"self": {r.URL}},
-					TraceId:     ctx.RequestId(),
-					Messages: comEx.GetMessages(),
-				}).
-				Build()
+		switch comEx := err.(type) {
 		case *CommonException: // see old code CommonExceptionHandler.java
-			comEx, _ := err.(*CommonException)
+			//comEx, _ := err.(*CommonException)
 			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))
 			statusCode := comEx.Status
 			if comEx.Status == 0 {

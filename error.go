@@ -2,8 +2,8 @@ package titan
 
 import (
 	"fmt"
+
 	"github.com/go-playground/validator"
-	"strings"
 )
 
 /**
@@ -13,7 +13,7 @@ import (
 // make it compatible old micronaut code, it's a subject to change latter
 // see HttpClientResponseExceptionHandler.java
 type DefaultJsonError struct {
-	Message  string                   `json:"message"` // deprecated, wait for client migration, it will be deleted
+	Message  string                   `json:"message"`
 	LogRef   string                   `json:"logref"`
 	Path     string                   `json:"path"`
 	Links    map[string][]string      `json:"_links"`
@@ -21,10 +21,8 @@ type DefaultJsonError struct {
 
 	TraceId          string            `json:"traceId"`
 	ValidationErrors []ValidationError `json:"validationErrors"`
-	ServerError      string            `json:"serverError"` // deprecated, wait for client migration, it will be deleted
-
-	// new errors message that supports multiple error messages
-	Messages []ErrorMessage `json:"messages"`
+	ServerError      string            `json:"serverError"`
+	ServerErrorParam interface{}       `json:"serverErrorParam"` // to support parameter message like "Beim Transformieren des Types {0} in den Type {1} ist ein Fehler aufgetreten."
 }
 
 type ValidationError struct {
@@ -44,63 +42,56 @@ func (e *ErrorMessage) String() string {
 	return fmt.Sprintf("%s,%s ", e.Key, e.Param)
 }
 
-type IServerError interface {
-	Error() string
-	GetMessages() []ErrorMessage
-}
-
-type ServerError struct {
-	Messages []ErrorMessage `json:"messages"`
-}
-
-func (s *ServerError) Error() string {
-	var messages []string
-	for _, m := range s.Messages {
-		messages = append(messages, m.String())
-	}
-	return strings.Join(messages, ", ")
-}
-
-func (s *ServerError) GetMessages() []ErrorMessage {
-	return s.Messages
-}
-
-func NewServerError(key string, param interface{}) *ServerError {
-	message:=ErrorMessage{Key:key, Param: param}
-	errors  :=  []ErrorMessage{message}
-	return &ServerError{errors}
-}
-
-//----------------------------------------------------------------------------------------------
-// mapped from HttpClientResponseException.java
-// Error when invoke another microservices
-type ClientResponseError struct {
-	Message  string
-	Response *Response
-	Cause    error
-}
-
-func (h *ClientResponseError) GetMessage() string {
-	return h.Message
-}
-
-func (h *ClientResponseError) Error() string {
-	return h.Message
-}
+//type IServerError interface {
+//	Error() string
+//	GetMessages() []ErrorMessage
+//}
+//
+//type ServerError struct {
+//	Messages []ErrorMessage `json:"messages"`
+//}
+//
+//func (s *ServerError) Error() string {
+//	var messages []string
+//	for _, m := range s.Messages {
+//		messages = append(messages, m.String())
+//	}
+//	return strings.Join(messages, ", ")
+//}
+//
+//func (s *ServerError) GetMessages() []ErrorMessage {
+//	return s.Messages
+//}
+//
+//func NewServerError(key string, param interface{}) *ServerError {
+//	message:=ErrorMessage{Key:key, Param: param}
+//	errors  :=  []ErrorMessage{message}
+//	return &ServerError{errors}
+//}
 
 //----------------------------------------------------------------------------------------------
 // ----------- copy from old micronaut  infrastructure.exception
 // see CommonException.java
-// Deprecated: use ServerError instead).
-type CommonException struct {
-	Status      int // http status
-	Message     string
-	ServerError string
+type ICommonException interface {
+	ServerError() string
+	ServerErrorParam() interface{}
 }
 
-func NewCommonException(serverError string) *CommonException {
+type CommonException struct {
+	Status           int // http status
+	Message          string
+	ServerError      string
+	ServerErrorParam interface{}
+}
+
+func NewCommonException(serverError string, param ...interface{}) *CommonException {
+	var p interface{}
+	if len(param) > 0 {
+		p = param[0]
+	}
 	return &CommonException{
-		ServerError: serverError,
+		ServerError:      serverError,
+		ServerErrorParam: p,
 	}
 }
 
@@ -139,7 +130,23 @@ func NewRecordNotFoundException(entityType, id, serverError string) *RecordNotFo
 }
 
 //----------------------------------------------------------------------------------------------
+// mapped from HttpClientResponseException.java
+// Error when invoke another microservices
+type ClientResponseError struct {
+	Message  string
+	Response *Response
+	Cause    error
+}
 
+func (h *ClientResponseError) GetMessage() string {
+	return h.Message
+}
+
+func (h *ClientResponseError) Error() string {
+	return h.Message
+}
+
+//----------------------------------------------------------------------------------------------
 type causer interface {
 	Cause() error
 }
@@ -157,8 +164,7 @@ Loop:
 			*ClientResponseError,
 			*validator.InvalidValidationError,
 			validator.ValidationErrors,
-			*validator.ValidationErrors,
-			*ServerError, IServerError:
+			*validator.ValidationErrors:
 			break Loop
 		}
 	}
