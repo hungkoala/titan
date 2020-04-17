@@ -42,46 +42,33 @@ func (e *ErrorMessage) String() string {
 	return fmt.Sprintf("%s,%s ", e.Key, e.Param)
 }
 
-//type IServerError interface {
-//	Error() string
-//	GetMessages() []ErrorMessage
-//}
-//
-//type ServerError struct {
-//	Messages []ErrorMessage `json:"messages"`
-//}
-//
-//func (s *ServerError) Error() string {
-//	var messages []string
-//	for _, m := range s.Messages {
-//		messages = append(messages, m.String())
-//	}
-//	return strings.Join(messages, ", ")
-//}
-//
-//func (s *ServerError) GetMessages() []ErrorMessage {
-//	return s.Messages
-//}
-//
-//func NewServerError(key string, param interface{}) *ServerError {
-//	message:=ErrorMessage{Key:key, Param: param}
-//	errors  :=  []ErrorMessage{message}
-//	return &ServerError{errors}
-//}
-
 //----------------------------------------------------------------------------------------------
-// ----------- copy from old micronaut  infrastructure.exception
-// see CommonException.java
-type ICommonException interface {
-	ServerError() string
-	ServerErrorParam() interface{}
+
+type ServerError interface {
+	GetServerError() string
+	GetServerErrorParam() interface{}
 }
 
+// ----------- copy from old micronaut  infrastructure.exception
+// see CommonException.java
+// todo: really really want to change it from Exception to Error. Go does not use Exception. Will change it soon
 type CommonException struct {
 	Status           int // http status
 	Message          string
 	ServerError      string
 	ServerErrorParam interface{}
+}
+
+func (c *CommonException) GetServerError() string {
+	return c.ServerError
+}
+
+func (c *CommonException) GetServerErrorParam() interface{} {
+	return c.ServerErrorParam
+}
+
+func (e *CommonException) Error() string {
+	return fmt.Sprintf("Server error : Message '%s', ServerError '%s'", e.Message, e.ServerError)
 }
 
 func NewCommonException(serverError string, param ...interface{}) *CommonException {
@@ -93,10 +80,6 @@ func NewCommonException(serverError string, param ...interface{}) *CommonExcepti
 		ServerError:      serverError,
 		ServerErrorParam: p,
 	}
-}
-
-func (e *CommonException) Error() string {
-	return fmt.Sprintf("Exception: Message '%s', ServerError '%s'", e.Message, e.ServerError)
 }
 
 // RecordDeleteFailedException.java
@@ -160,7 +143,7 @@ Loop:
 		}
 		err = cause.Cause()
 		switch err.(type) {
-		case *CommonException,
+		case *CommonException, ServerError,
 			*ClientResponseError,
 			*validator.InvalidValidationError,
 			validator.ValidationErrors,

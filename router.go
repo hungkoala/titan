@@ -176,7 +176,6 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 		err = UnwrapErr(err)
 		switch comEx := err.(type) {
 		case *CommonException: // see old code CommonExceptionHandler.java
-			//comEx, _ := err.(*CommonException)
 			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))
 			statusCode := comEx.Status
 			if comEx.Status == 0 {
@@ -185,10 +184,23 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
 			return builder.
 				StatusCode(statusCode). //bad request
 				BodyJSON(&DefaultJsonError{
-					Message:     comEx.Message,
-					ServerError: comEx.ServerError,
-					Links:       map[string][]string{"self": {r.URL}},
-					TraceId:     ctx.RequestId(),
+					Message:          comEx.Message,
+					ServerError:      comEx.ServerError,
+					ServerErrorParam: comEx.ServerErrorParam,
+					Links:            map[string][]string{"self": {r.URL}},
+					TraceId:          ctx.RequestId(),
+				}).
+				Build()
+		case ServerError:
+			logger.Error(fmt.Sprintf("Server error %s ", comEx.GetServerError()))
+			statusCode := 400
+			return builder.
+				StatusCode(statusCode).
+				BodyJSON(&DefaultJsonError{
+					ServerError:      comEx.GetServerError(),
+					ServerErrorParam: comEx.GetServerErrorParam(),
+					Links:            map[string][]string{"self": {r.URL}},
+					TraceId:          ctx.RequestId(),
 				}).
 				Build()
 		case *validator.InvalidValidationError: // validation error ConstraintViolationExceptionHandler.java
