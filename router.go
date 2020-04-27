@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"runtime/debug"
 	"strings"
 
 	"github.com/go-playground/validator/v10/non-standard/validators"
@@ -164,6 +165,26 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 }
 
 func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
+	var response *Response
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
+			builder := NewResBuilder()
+			response = builder.
+				StatusCode(500).
+				BodyJSON(&DefaultJsonError{
+					Message:     fmt.Sprintf("panic : %v", err),
+					ServerError: "SOME_THINGS_WENT_WRONG",
+					TraceId:     ctx.RequestId(),
+					Links:       map[string][]string{"self": {r.URL}},
+				}).
+				Build()
+		}
+	}()
+	response = handleJsonResponse(ctx, r, cb)
+	return response
+}
+func handleJsonResponse(ctx *Context, r *Request, cb Handler) *Response {
 	logger := ctx.Logger()
 
 	builder := NewResBuilder()
