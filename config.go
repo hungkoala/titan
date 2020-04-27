@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/nats-io/nats.go"
 
@@ -27,6 +24,14 @@ var defaultClient *Client
 var mux sync.Mutex
 var logger logur.Logger
 
+const (
+	NatsServers     = "Nats.Servers"
+	NatsReadTimeout = "Nats.ReadTimeout"
+	LoggingFormat   = "Logging.Format"
+	LoggingLevel    = "Logging.Level"
+	LoggingNoColor  = "Logging.NoColor"
+)
+
 func init() {
 	var err error
 	hostname, err = os.Hostname()
@@ -42,29 +47,27 @@ func init() {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
 
-	// set default value logging
-	viper.SetDefault("Logging.Format", "logfmt")
-	viper.SetDefault("Logging.Level", "debug")
-	viper.SetDefault("Logging.NoColor", false)
+	// logging
+	viper.SetDefault(LoggingFormat, "logfmt")
+	viper.SetDefault(LoggingLevel, "debug")
+	viper.SetDefault(LoggingNoColor, false)
+	logConfig = log.Config{
+		Format:  viper.GetString(LoggingFormat),
+		Level:   viper.GetString(LoggingLevel),
+		NoColor: viper.GetBool(LoggingNoColor),
+	}
+	logger = log.WithFields(log.NewLogger(&logConfig), map[string]interface{}{"hostname": hostname})
 
 	// nats
-	viper.SetDefault("Nats.Servers", "nats://127.0.0.1:4222, nats://localhost:4222")
-	viper.SetDefault("Nats.ReadTimeout", 15)
-
-	// map environment variables to settings
-	AutoLoadEnvironmentVariables()
-	settings := viper.AllSettings()
-	err = mapstructure.Decode(settings["nats"], &natConfig)
-	fmt.Printf("nats config = %+v \n", natConfig)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("Unmarshal nats config error %+v", err))
-		os.Exit(1)
+	viper.SetDefault(NatsServers, "nats://127.0.0.1:4222, nats://localhost:4222")
+	viper.SetDefault(NatsReadTimeout, 99999)
+	natConfig = NatsConfig{
+		Servers:     viper.GetString(NatsServers),
+		ReadTimeout: viper.GetInt(NatsReadTimeout),
 	}
 
-	err = mapstructure.Decode(settings["logging"], &logConfig)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("Unmarshal logging config error %+v", err))
-	}
+	logger.Debug("NATS Config :", map[string]interface{}{"Servers": natConfig.Servers, "ReadTimeout": natConfig.ReadTimeout})
+	logger.Debug("Log Config :", map[string]interface{}{"format": logConfig.Format, "level": logConfig.Level, "NoColor": logConfig.NoColor})
 }
 
 type NatsConfig struct {
@@ -140,22 +143,4 @@ func GetDefaultClient() *Client {
 	mux.Unlock()
 
 	return defaultClient
-}
-
-func AutoLoadEnvironmentVariables() {
-	// map environment variables to settings
-	allKeys := viper.AllKeys()
-	keyMap := map[string]bool{}
-	for _, k := range allKeys {
-		keyMap[k] = true
-	}
-
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		key := strings.ToLower(pair[0])
-		val := pair[1]
-		if _, ok := keyMap[key]; ok {
-			viper.Set(key, val)
-		}
-	}
 }

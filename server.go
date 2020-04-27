@@ -291,7 +291,11 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 				)
 			}()
+
+			// forward request to Controller
 			handler.ServeHTTP(rp, rq)
+
+			// send response back
 			err = enc.Publish(rpSubject, rp)
 
 			if err != nil {
