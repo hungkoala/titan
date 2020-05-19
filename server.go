@@ -142,7 +142,7 @@ func (srv *Server) start() error {
 		return errors.New("nats: ReadTimeout can not be empty")
 	}
 
-	timeoutHandler := http.TimeoutHandler(srv.handler, config.GetReadTimeoutDuration(), "nats handler timeout")
+	timeoutHandler := http.TimeoutHandler(srv.handler, config.GetReadTimeoutDuration(), `{"message": "nats handler timeout"}`)
 
 	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers})
 	conn, err := NewConnection(
