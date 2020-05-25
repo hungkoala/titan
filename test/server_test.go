@@ -2,14 +2,15 @@ package test
 
 import (
 	"context"
-	"emperror.dev/errors"
 	"encoding/json"
 	"fmt"
+	"os"
+	"testing"
+
+	"emperror.dev/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/silenteer-oss/titan"
-	"os"
-	"testing"
 )
 
 type GetResult struct {
@@ -111,7 +112,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 
 	testServer := NewTestServer(t, server)
 	testServer.Start()
-	defer server.Stop()
+	defer testServer.Stop()
 
 	//2. client request it
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}

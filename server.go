@@ -92,16 +92,21 @@ func NewServer(subject string, options ...Option) *Server {
 		handler:           opts.router,
 		messageSubscriber: opts.messageSubscriber,
 		logger:            log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
-		Started:           make(chan interface{}, 1),
+		//Started:           make(chan interface{}, 1),
 	}
 }
 
-func (srv *Server) Start() {
-	err := srv.start()
+func (srv *Server) Start(started ...chan interface{}) {
+	err := srv.start(started...)
 	if err != nil {
 		srv.logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
 		os.Exit(1)
 	}
+}
+
+type IServer interface {
+	Stop()
+	Start(started ...chan interface{})
 }
 
 type Server struct {
@@ -112,10 +117,9 @@ type Server struct {
 	messageSubscriber *MessageSubscriber
 	logger            logur.Logger
 	stop              chan interface{}
-	Started           chan interface{}
 }
 
-func (srv *Server) start() error {
+func (srv *Server) start(started ...chan interface{}) error {
 
 	if srv.handler == nil {
 		return errors.New("nats: Handler not found")
@@ -212,8 +216,10 @@ func (srv *Server) start() error {
 		srv.stop = nil
 	}
 
-	close(srv.Started)
 	srv.logger.Info("Server started")
+	for i := range started {
+		started[i] <- true
+	}
 
 	select {
 	case <-srv.stop:

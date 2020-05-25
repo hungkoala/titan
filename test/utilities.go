@@ -2,26 +2,33 @@ package test
 
 import (
 	"fmt"
-	"gitlab.com/silenteer-oss/titan"
 	"sync"
 	"testing"
 	"time"
+
+	"gitlab.com/silenteer-oss/titan"
 )
 
 type TestServer struct {
-	*titan.Server
-	t *testing.T
+	Server titan.IServer
+	t      *testing.T
 }
 
-func NewTestServer(t *testing.T, server *titan.Server) *TestServer {
+func NewTestServer(t *testing.T, server titan.IServer) *TestServer {
 	return &TestServer{server, t}
 }
 
 func (s *TestServer) Start() {
+	ch := make(chan interface{}, 1)
+	go func() {
+		s.Server.Start(ch)
+	}()
 
-	go func() { s.Server.Start() }()
+	WaitOrTimeout(s.t, ch, "Server start timed out")
+}
 
-	WaitOrTimeout(s.t, s.Server.Started, "Server start timed out")
+func (s *TestServer) Stop() {
+	s.Server.Stop()
 }
 
 type TestWaitGroup struct {
@@ -72,10 +79,10 @@ func WaitOrTimeoutFor(t *testing.T, ch chan interface{}, timeout int, msg string
 }
 
 type TestServers struct {
-	servers []*titan.Server
+	servers []titan.IServer
 }
 
-func NewTestServers(servers []*titan.Server) TestServers {
+func NewTestServers(servers []titan.IServer) TestServers {
 	return TestServers{servers}
 }
 
@@ -84,16 +91,21 @@ func (s *TestServers) Start() {
 
 	for _, server := range s.servers {
 		wg.Add(1)
-		go func(server *titan.Server) {
-			server.Start()
-		}(server)
-		go func(server *titan.Server, wg *TestWaitGroup) {
-			<-server.Started
-			wg.Done()
+		go func(server titan.IServer, wg *TestWaitGroup) {
+			ch := make(chan interface{}, 1)
+			go func(s titan.IServer) {
+				s.Start(ch)
+			}(server)
+			select {
+			case <-ch:
+				wg.Done()
+			case <-time.After(time.Duration(20) * time.Second):
+				panic(fmt.Sprintf("Servers start timed out after %d seconds", 1))
+			}
 		}(server, wg)
 	}
 
-	wg.WaitOrTimeoutForWithMessage(len(s.servers), "Servers start timed out")
+	wg.WaitOrTimeoutForWithMessage(len(s.servers)*20, "Servers start timed out")
 }
 
 func (s *TestServers) Stop() {
