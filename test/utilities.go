@@ -82,7 +82,7 @@ type TestServers struct {
 	servers []titan.IServer
 }
 
-func NewTestServers(servers []titan.IServer) TestServers {
+func NewTestServers(servers ...titan.IServer) TestServers {
 	return TestServers{servers}
 }
 
