@@ -164,8 +164,7 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 	return nil
 }
 
-func handleJsonRequest(ctx *Context, r *Request, cb Handler) *Response {
-	var response *Response
+func handleJsonRequest(ctx *Context, r *Request, cb Handler) (response *Response) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
