@@ -20,11 +20,15 @@ type BuildInfo struct {
 }
 
 type DefaultHandlers struct {
-	subject string
+	Subject string
 }
 
 func (h *DefaultHandlers) Routes(r Router) {
-	basePath := "/" + strings.Join(strings.Split(h.subject, "."), "/")
+	basePath := ""
+	if h.Subject != "" {
+		basePath = "/" + strings.Join(strings.Split(h.Subject, "."), "/")
+	}
+
 	r.RegisterJson("GET", basePath+"/health", h.Health)
 	r.RegisterJson("GET", basePath+"/info", h.AppInfo)
 }

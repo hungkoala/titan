@@ -138,9 +138,12 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		rq.Headers.Set("multiTenantCareProviderId", multiTenantCareProviderId)
 	}
 	// end of hacked code
+	subject := rq.Subject
+	if rq.Subject == "" {
+		subject = Url2Subject(rq.URL)
+	}
 
-	subject := Url2Subject(rq.URL)
-	logUrl := extractLoggablePartsFromUrl(rq.URL)
+	logUrl := ExtractLoggablePartsFromUrl(rq.URL)
 
 	logger.Debug("Nats client sending request", map[string]interface{}{
 		"url": logUrl, "subject": subject, "id": ctx.RequestId(), "method": rq.Method})

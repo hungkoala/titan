@@ -28,6 +28,11 @@ func NewContext(c context.Context) *Context {
 	return &Context{context: c}
 }
 
+func (c *Context) WithValue(key, val interface{}) *Context {
+	ctx := context.WithValue(c, key, val)
+	return NewContext(ctx)
+}
+
 func (c *Context) Deadline() (deadline time.Time, ok bool) {
 	return c.context.Deadline()
 }

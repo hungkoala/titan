@@ -28,6 +28,9 @@ type Request struct {
 	Headers http.Header `json:"headers"`
 	Body    []byte      `json:"body"`
 	URL     string      `json:"url"`
+
+	// in case of using NATS subject instead of Restful url prefix
+	Subject string `json:"subject"`
 }
 
 func (r *Request) HasBody() bool {
@@ -82,6 +85,8 @@ type RequestBuilder struct {
 
 	// raw url string for requests
 	rawURL string
+
+	subject string `json:"subject"`
 }
 
 // New returns a new default  Request.
@@ -220,6 +225,11 @@ func (r *RequestBuilder) SetHeaders(header http.Header) *RequestBuilder {
 	return r
 }
 
+func (r *RequestBuilder) Subject(subject string) *RequestBuilder {
+	r.subject = subject
+	return r
+}
+
 func (r *RequestBuilder) Build() (*Request, error) {
 	_, err := url.Parse(r.rawURL)
 	if err != nil {
@@ -232,5 +242,5 @@ func (r *RequestBuilder) Build() (*Request, error) {
 			return nil, errors.WithMessage(err, "Invalid body format ")
 		}
 	}
-	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body}, nil
+	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body, Subject: r.subject}, nil
 }

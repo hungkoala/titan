@@ -2,13 +2,12 @@ package titan
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,10 +24,18 @@ type Option func(*Options) error
 
 // Options can be used to create a customized connection.
 type Options struct {
+	logger            logur.Logger
 	queue             string
 	config            *NatsConfig
 	router            Router
 	messageSubscriber *MessageSubscriber
+}
+
+func Logger(logger logur.Logger) Option {
+	return func(o *Options) error {
+		o.logger = logger
+		return nil
+	}
 }
 
 func Queue(queue string) Option {
@@ -60,24 +67,28 @@ func Subscribe(r func(*MessageSubscriber)) Option {
 }
 
 func NewServer(subject string, options ...Option) *Server {
+	// default logger
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
-	config := GetNatsConfig()
 
 	r := chi.NewRouter()
-	r.Use(RouteParamsMiddleware)
+	r.Use(NewMiddleware("NATS", logger))
 
 	// set default handlers
-	defaultHandlers := &DefaultHandlers{subject: subject}
-	optionsWithDefault := append(options, Routes(defaultHandlers.Routes))
+	// health check and build info
+	defaultHandlers := &DefaultHandlers{Subject: subject}
+	withDefaultOptions := append(options, Routes(defaultHandlers.Routes))
 
+	// default options
 	opts := Options{
-		config:            config,
+		logger:            logger,
+		config:            GetNatsConfig(),
 		router:            NewRouter(r),
 		queue:             "workers",
 		messageSubscriber: NewMessageSubscriber(logger),
 	}
 
-	for _, opt := range optionsWithDefault {
+	// merge options with user define
+	for _, opt := range withDefaultOptions {
 		if opt != nil {
 			if err := opt(&opts); err != nil {
 				logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
@@ -85,14 +96,14 @@ func NewServer(subject string, options ...Option) *Server {
 			}
 		}
 	}
+
 	return &Server{
 		subject:           subject,
 		queue:             opts.queue,
 		config:            opts.config,
 		handler:           opts.router,
 		messageSubscriber: opts.messageSubscriber,
-		logger:            log.WithFields(logger, map[string]interface{}{"queue": opts.queue}),
-		//Started:           make(chan interface{}, 1),
+		logger:            log.WithFields(opts.logger, map[string]interface{}{"queue": opts.queue}),
 	}
 }
 
@@ -236,14 +247,12 @@ func (srv *Server) start(started ...chan interface{}) error {
 func (srv *Server) Stop() {
 	if srv != nil && srv.stop != nil {
 		srv.stop <- "stop"
-		//<-srv.stop
 	}
 }
 
 func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
 		go func(enc *nats.EncodedConn) {
-			t := time.Now()
 			if rq.Headers == nil {
 				rq.Headers = http.Header{}
 			}
@@ -254,56 +263,23 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			}
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
 
-			url := extractLoggablePartsFromUrl(rq.URL)
-			logWithId.Debug("Nats server received request", map[string]interface{}{"url": url})
-
 			defer handlePanic(conn, logWithId, rpSubject)
 
 			rp := &Response{
 				Headers: http.Header{},
 			}
 
-			ctx := context.Background()
-
-			// add log
-			ctx = context.WithValue(ctx, XLoggerId, logWithId)
-
-			// add request id
-			ctx = context.WithValue(ctx, XRequestId, requestID)
-
-			userInfoJson := rq.Headers.Get(XUserInfo)
-
-			if userInfoJson != "" {
-				var userInfo UserInfo
-				jerr := json.Unmarshal([]byte(userInfoJson), &userInfo)
-				if jerr != nil {
-					logger.Error(fmt.Sprintf("Unmarshal User Info  error: %+v\n ", jerr))
-				} else {
-					ctx = context.WithValue(ctx, XUserInfo, &userInfo)
-				}
-			}
-
-			rq, err := natsRequestToHttpRequest(rq, ctx)
+			rq, err := natsRequestToHttpRequest(rq)
 			if err != nil {
 				replyError(enc, logWithId, err, rpSubject)
 				return
 			}
-
-			defer func() {
-				logWithId.Info("Nats server request complete", map[string]interface{}{
-					"method":     rq.Method,
-					"url":        rq.URL,
-					"status":     rp.StatusCode,
-					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
-				)
-			}()
 
 			// forward request to Controller
 			handler.ServeHTTP(rp, rq)
 
 			// send response back
 			err = enc.Publish(rpSubject, rp)
-
 			if err != nil {
 				logWithId.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
 			}
@@ -337,7 +313,7 @@ func replyError(enc *nats.EncodedConn, logger logur.Logger, err error, rpSubject
 	}
 }
 
-func natsRequestToHttpRequest(rq *Request, c context.Context) (*http.Request, error) {
+func natsRequestToHttpRequest(rq *Request) (*http.Request, error) {
 	var body io.Reader
 	if rq.Body != nil {
 		body = bytes.NewReader(rq.Body)
@@ -345,9 +321,12 @@ func natsRequestToHttpRequest(rq *Request, c context.Context) (*http.Request, er
 		body = bytes.NewReader([]byte{})
 	}
 
-	topic := extractTopicFromHttpUrl(rq.URL)
+	if !strings.HasPrefix(rq.URL, "/") {
+		rq.URL = "/" + rq.URL
+	}
+	//topic := extractTopicFromHttpUrl(rq.URL)
 
-	request, err := http.NewRequestWithContext(c, rq.Method, topic, body)
+	request, err := http.NewRequest(rq.Method, rq.URL, body)
 	if err != nil {
 		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
 	}
@@ -357,13 +336,4 @@ func natsRequestToHttpRequest(rq *Request, c context.Context) (*http.Request, er
 	}
 
 	return request, nil
-}
-
-func RouteParamsMiddleware(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		queryParams := QueryParams(r.URL.Query())
-		ctx := context.WithValue(r.Context(), XQueryParams, queryParams)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	}
-	return http.HandlerFunc(fn)
 }

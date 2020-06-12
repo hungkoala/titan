@@ -80,7 +80,8 @@ func TestRegisterTopic(t *testing.T) {
 
 	//2. client request it
 	request, _ := titan.NewReqBuilder().
-		Post("/api/service/test/GET_DATA").
+		Subject("api.service.test").
+		Post("GET_DATA").
 		Build()
 
 	_, err := titan.GetDefaultClient().SendRequest(titan.NewBackgroundContext(), request)

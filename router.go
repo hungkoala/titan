@@ -1,7 +1,6 @@
 package titan
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,8 +12,6 @@ import (
 	"github.com/go-playground/validator/v10/non-standard/validators"
 
 	"github.com/go-playground/validator/v10"
-
-	"logur.dev/logur"
 
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
@@ -42,7 +39,6 @@ type Router interface {
 
 type Mux struct {
 	Router chi.Router
-	Logger logur.Logger
 }
 
 func NewRouter(r chi.Router) *Mux {
@@ -54,67 +50,66 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Router.ServeHTTP(w, r)
 }
 
-func (m *Mux) Register(method, pattern string, handlerFunc HandlerFunc, auths ...AuthFunc) {
-	topic := extractTopicFromHttpUrl(pattern)
-	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
+func (m *Mux) Register(method, path string, handlerFunc HandlerFunc, auths ...AuthFunc) {
+	path = AddSlashPrefixIfMissing(path)
+
+	m.Router.MethodFunc(method, path, func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r.Context())
+		ctx = ctx.WithValue(XPathParams, ParsePathParams(ctx))
+
+		var rp *Response
 
 		// add request to context
 		newRequest, err := httpRequestToRequest(r)
 		if err != nil {
-			m.Logger.Error(fmt.Sprintf("request coverting error: %+v\n ", err))
-		}
-
-		ctx = context.WithValue(ctx, XRequest, newRequest)
-
-		newCtx := NewContext(ctx)
-
-		var rp *Response
-		if !isAuthorized(newCtx, auths) {
-			rp = createUnAuthorizeResponse(newCtx.RequestId(), newRequest.URL)
+			ctx.Logger().Error(fmt.Sprintf("request coverting error: %+v\n ", err))
+			rp = createInternalErrorResponse(ctx.RequestId(), newRequest.URL, err)
 		} else {
-			// call handler
-			rp = handlerFunc(newCtx, newRequest)
+			ctx = ctx.WithValue(XRequest, newRequest)
+			if !isAuthorized(ctx, auths) {
+				rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+			} else {
+				// call handler
+				rp = handlerFunc(ctx, newRequest)
+			}
 		}
+
 		err = writeResponse(w, rp)
 		if err != nil {
-			m.Logger.Error(fmt.Sprintf("reposne writing error: %+v\n ", err))
+			ctx.Logger().Error(fmt.Sprintf("reposne writing error: %+v\n ", err))
 		}
 	})
 }
 
 func (m *Mux) RegisterTopic(topic string, h Handler, auths ...AuthFunc) {
-	if !strings.HasPrefix(topic, "/") {
-		topic = "/" + topic
-	}
 	m.RegisterJson("POST", topic, h, auths...)
 }
 
-func (m *Mux) RegisterJson(method, pattern string, h Handler, auths ...AuthFunc) {
-	topic := extractTopicFromHttpUrl(pattern)
-	m.Router.MethodFunc(method, topic, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, XPathParams, ParsePathParams(ctx))
+func (m *Mux) RegisterJson(method, path string, h Handler, auths ...AuthFunc) {
+	path = AddSlashPrefixIfMissing(path)
+
+	m.Router.MethodFunc(method, path, func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r.Context())
+		ctx = ctx.WithValue(XPathParams, ParsePathParams(ctx))
+
+		var rp *Response
 
 		// add request to context
 		newRequest, err := httpRequestToRequest(r)
 		if err != nil {
-			m.Logger.Error(fmt.Sprintf("request coverting error: %+v\n ", err))
-		}
-
-		ctx = context.WithValue(ctx, XRequest, newRequest)
-		newCtx := NewContext(ctx)
-		var rp *Response
-		if !isAuthorized(newCtx, auths) {
-			rp = createUnAuthorizeResponse(newCtx.RequestId(), newRequest.URL)
+			ctx.Logger().Error(fmt.Sprintf("request coverting error: %+v\n ", err))
+			rp = createInternalErrorResponse(ctx.RequestId(), newRequest.URL, err)
 		} else {
-			// call handler
-			rp = handleJsonRequest(newCtx, newRequest, h)
+			ctx = ctx.WithValue(XRequest, newRequest)
+			if !isAuthorized(ctx, auths) {
+				rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+			} else {
+				rp = handleJsonRequest(ctx, newRequest, h)
+			}
 		}
 		err = writeResponse(w, rp)
 		if err != nil {
-			m.Logger.Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
+			ctx.Logger().Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
 		}
 	})
 }
@@ -183,6 +178,7 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) (response *Response
 	response = handleJsonResponse(ctx, r, cb)
 	return response
 }
+
 func handleJsonResponse(ctx *Context, r *Request, cb Handler) *Response {
 	logger := ctx.Logger()
 
@@ -458,4 +454,23 @@ func createUnAuthorizeResponse(traceId, url string) *Response {
 			Links:   map[string][]string{"self": {url}},
 		}).
 		Build()
+}
+
+func createInternalErrorResponse(traceId, url string, err error) *Response {
+	return NewResBuilder().
+		StatusCode(500).
+		BodyJSON(&DefaultJsonError{
+			Message:     err.Error(),
+			ServerError: "SOME_THINGS_WENT_WRONG",
+			TraceId:     traceId,
+			Links:       map[string][]string{"self": {url}},
+		}).
+		Build()
+}
+
+func AddSlashPrefixIfMissing(path string) string {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }

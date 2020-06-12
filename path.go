@@ -43,7 +43,7 @@ func extractSomePartsFromUrl(url string, numberOfPart int, separator string) str
 	return strings.Join(s[1:l], separator)
 }
 
-func extractLoggablePartsFromUrl(url string) string {
+func ExtractLoggablePartsFromUrl(url string) string {
 	return extractSomePartsFromUrl(url, 4, "/")
 }
 
