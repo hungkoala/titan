@@ -1,6 +1,7 @@
 package restful
 
 import (
+	context2 "context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -106,4 +107,32 @@ func TestHttpsHealthEndPoint(t *testing.T) {
 
 	//3. assert it
 	assert.NotEmpty(t, result.Status, "UP")
+}
+
+func TestHttpsClient(t *testing.T) {
+	//1. setup server
+	port := "6967"
+
+	server := restful.NewServer(
+		restful.Port(port),
+		restful.TlsEnable(true),
+		restful.TlsCert(cert),
+		restful.TlsKey(key))
+
+	testServer := test.NewTestServer(t, server)
+	testServer.Start()
+	defer testServer.Stop()
+
+	ctx := titan.NewContext(context2.Background())
+	var result titan.Health
+
+	request, err := titan.NewReqBuilder().Get("/health").Build()
+	require.Nil(t, err)
+
+	err = restful.
+		NewClient(fmt.Sprintf("https://localhost:%s", port)).
+		SendAndReceiveJson(ctx, request, &result)
+	require.Nil(t, err)
+	assert.NotEmpty(t, result.Status, "UP")
+
 }

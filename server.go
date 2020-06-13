@@ -1,13 +1,10 @@
 package titan
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -269,7 +266,7 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				Headers: http.Header{},
 			}
 
-			rq, err := natsRequestToHttpRequest(rq)
+			rq, err := NatsRequestToHttpRequest(rq)
 			if err != nil {
 				replyError(enc, logWithId, err, rpSubject)
 				return
@@ -311,29 +308,4 @@ func replyError(enc *nats.EncodedConn, logger logur.Logger, err error, rpSubject
 	if er != nil {
 		logger.Error(fmt.Sprintf("Nats error on reply back: %+v\n ", er))
 	}
-}
-
-func natsRequestToHttpRequest(rq *Request) (*http.Request, error) {
-	var body io.Reader
-	if rq.Body != nil {
-		body = bytes.NewReader(rq.Body)
-	} else {
-		body = bytes.NewReader([]byte{})
-	}
-
-	if !strings.HasPrefix(rq.URL, "/") {
-		rq.URL = "/" + rq.URL
-	}
-	//topic := extractTopicFromHttpUrl(rq.URL)
-
-	request, err := http.NewRequest(rq.Method, rq.URL, body)
-	if err != nil {
-		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
-	}
-
-	if rq.Headers != nil {
-		request.Header = rq.Headers
-	}
-
-	return request, nil
 }

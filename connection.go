@@ -1,11 +1,18 @@
 package titan
 
 import (
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/nats-io/nats.go"
 )
+
+type IConnection interface {
+	Publish(subject string, v interface{}) error
+	SendRequest(rq *Request, subject string) (*Response, error)
+	Flush() error
+}
 
 type Connection struct {
 	Conn *nats.EncodedConn
@@ -29,11 +36,19 @@ func NewConnection(url string, options ...nats.Option) (*Connection, error) {
 	return &Connection{Conn: enc}, nil
 }
 
-func (srv *Connection) SendRequest(rq *Request, subject string) (*Response, error) {
+func (c *Connection) SendRequest(rq *Request, subject string) (*Response, error) {
 	if subject == "" {
 		return nil, errors.New("nats subject cannot be nil")
 	}
 	rp := Response{}
-	err := srv.Conn.Request(subject, rq, &rp, GetNatsConfig().GetReadTimeoutDuration()+5*time.Second)
+	err := c.Conn.Request(subject, rq, &rp, GetNatsConfig().GetReadTimeoutDuration()+5*time.Second)
 	return &rp, err
+}
+
+func (c *Connection) Publish(subject string, v interface{}) error {
+	return c.Conn.Publish(subject, v)
+}
+
+func (c *Connection) Flush() error {
+	return c.Conn.Flush()
 }

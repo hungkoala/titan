@@ -14,14 +14,18 @@ import (
 )
 
 type Client struct {
-	conn *Connection
+	conn IConnection
+}
+
+func NewClient(conn IConnection) *Client {
+	return &Client{conn: conn}
 }
 
 var null = []byte{'n', 'u', 'l', 'l'}
 
 func (srv *Client) request(ctx *Context, rq *Request, subject string) (*Response, error) {
-	defer func(c *Connection) {
-		_ = c.Conn.Flush()
+	defer func(c IConnection) {
+		_ = c.Flush()
 	}(srv.conn)
 	return srv.conn.SendRequest(rq, subject)
 }
@@ -212,5 +216,5 @@ func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error
 	}
 	p.Body = b
 
-	return srv.conn.Conn.Publish(subject, p)
+	return srv.conn.Publish(subject, p)
 }

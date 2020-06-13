@@ -3,7 +3,6 @@ package titan
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -60,7 +59,7 @@ func (m *Mux) Register(method, path string, handlerFunc HandlerFunc, auths ...Au
 		var rp *Response
 
 		// add request to context
-		newRequest, err := httpRequestToRequest(r)
+		newRequest, err := HttpRequestToNatsRequest(r)
 		if err != nil {
 			ctx.Logger().Error(fmt.Sprintf("request coverting error: %+v\n ", err))
 			rp = createInternalErrorResponse(ctx.RequestId(), newRequest.URL, err)
@@ -95,7 +94,7 @@ func (m *Mux) RegisterJson(method, path string, h Handler, auths ...AuthFunc) {
 		var rp *Response
 
 		// add request to context
-		newRequest, err := httpRequestToRequest(r)
+		newRequest, err := HttpRequestToNatsRequest(r)
 		if err != nil {
 			ctx.Logger().Error(fmt.Sprintf("request coverting error: %+v\n ", err))
 			rp = createInternalErrorResponse(ctx.RequestId(), newRequest.URL, err)
@@ -112,25 +111,6 @@ func (m *Mux) RegisterJson(method, path string, h Handler, auths ...AuthFunc) {
 			ctx.Logger().Error(fmt.Sprintf("json reposne writing error: %+v\n ", err))
 		}
 	})
-}
-
-func httpRequestToRequest(r *http.Request) (*Request, error) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, errors.WithMessage(err, "Error reading body:")
-	}
-
-	defer func() { _ = r.Body.Close() }()
-	if len(body) == 0 {
-		body = nil
-	}
-
-	return &Request{
-		Body:    body,
-		URL:     r.RequestURI,
-		Method:  r.Method,
-		Headers: r.Header,
-	}, nil
 }
 
 // side effect function

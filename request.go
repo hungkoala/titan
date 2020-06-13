@@ -1,10 +1,14 @@
 package titan
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -243,4 +247,48 @@ func (r *RequestBuilder) Build() (*Request, error) {
 		}
 	}
 	return &Request{URL: r.rawURL, Method: r.method, Headers: r.headers, Body: body, Subject: r.subject}, nil
+}
+
+func NatsRequestToHttpRequest(rq *Request) (*http.Request, error) {
+	var body io.Reader
+	if rq.Body != nil {
+		body = bytes.NewReader(rq.Body)
+	} else {
+		body = bytes.NewReader([]byte{})
+	}
+
+	if !strings.HasPrefix(rq.URL, "/") {
+		rq.URL = "/" + rq.URL
+	}
+	//topic := extractTopicFromHttpUrl(rq.URL)
+
+	request, err := http.NewRequest(rq.Method, rq.URL, body)
+	if err != nil {
+		return nil, errors.WithMessage(err, "Nats: Something wrong with creating the request")
+	}
+
+	if rq.Headers != nil {
+		request.Header = rq.Headers
+	}
+
+	return request, nil
+}
+
+func HttpRequestToNatsRequest(r *http.Request) (*Request, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, errors.WithMessage(err, "Error reading body:")
+	}
+
+	defer func() { _ = r.Body.Close() }()
+	if len(body) == 0 {
+		body = nil
+	}
+
+	return &Request{
+		Body:    body,
+		URL:     r.RequestURI,
+		Method:  r.Method,
+		Headers: r.Header,
+	}, nil
 }
