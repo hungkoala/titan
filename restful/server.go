@@ -2,12 +2,15 @@ package restful
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"gitlab.com/silenteer-oss/titan/log"
 
 	"github.com/go-chi/chi/middleware"
 
@@ -16,7 +19,6 @@ import (
 	"github.com/go-chi/chi"
 
 	"github.com/pkg/errors"
-	"gitlab.com/silenteer-oss/titan/log"
 	"logur.dev/logur"
 )
 
@@ -26,10 +28,18 @@ type Option func(*Options) error
 // Options can be used to create a customized connection.
 type Options struct {
 	logger logur.Logger
-	queue  string
-	//config            *NatsConfig
+
 	router titan.Router
-	//messageSubscriber *MessageSubscriber
+
+	tlsEnable bool
+
+	// base64 encoding of DER format
+	tlsKey string
+
+	// base64 encoding of DER format
+	tlsCert string
+
+	port string
 }
 
 func Logger(logger logur.Logger) Option {
@@ -39,20 +49,33 @@ func Logger(logger logur.Logger) Option {
 	}
 }
 
-func Queue(queue string) Option {
+func TlsEnable(v bool) Option {
 	return func(o *Options) error {
-		o.queue = queue
+		o.tlsEnable = v
 		return nil
 	}
 }
 
-//
-//func Config(config *NatsConfig) Option {
-//	return func(o *Options) error {
-//		o.config = config
-//		return nil
-//	}
-//}
+func TlsKey(v string) Option {
+	return func(o *Options) error {
+		o.tlsKey = v
+		return nil
+	}
+}
+
+func TlsCert(v string) Option {
+	return func(o *Options) error {
+		o.tlsCert = v
+		return nil
+	}
+}
+
+func Port(v string) Option {
+	return func(o *Options) error {
+		o.port = v
+		return nil
+	}
+}
 
 func Routes(r func(titan.Router)) Option {
 	return func(o *Options) error {
@@ -61,9 +84,9 @@ func Routes(r func(titan.Router)) Option {
 	}
 }
 
-func NewServer(port string, options ...Option) *Server {
+func NewServer(options ...Option) *Server {
 	// default logger
-	logger := log.WithFields(titan.GetLogger(), map[string]interface{}{"port": port})
+	logger := getLogger(options)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -72,21 +95,18 @@ func NewServer(port string, options ...Option) *Server {
 
 	// set default handlers - health check and build info
 	defaultHandlers := &titan.DefaultHandlers{Subject: ""}
-	withDefaultOptions := append(options, Routes(defaultHandlers.Routes))
+	withDefaultOptions := append(append(getDefaultConfig(), options...), Routes(defaultHandlers.Routes))
 
 	// default options
 	opts := Options{
 		logger: logger,
-		//config:            GetNatsConfig(),
 		router: titan.NewRouter(r),
-		queue:  "workers",
-		//messageSubscriber: NewMessageSubscriber(logger),
 	}
 
 	// merge options with user define
-	for _, opt := range withDefaultOptions {
-		if opt != nil {
-			if err := opt(&opts); err != nil {
+	for _, f := range withDefaultOptions {
+		if f != nil {
+			if err := f(&opts); err != nil {
 				logger.Error(fmt.Sprintf("Nats server creation error: %+v\n ", err))
 				os.Exit(1)
 			}
@@ -94,11 +114,12 @@ func NewServer(port string, options ...Option) *Server {
 	}
 
 	return &Server{
-		port: port,
-		//config:            opts.config,
-		handler: opts.router,
-		//messageSubscriber: opts.messageSubscriber,
-		logger: log.WithFields(opts.logger, map[string]interface{}{"queue": opts.queue}),
+		tlsEnable: opts.tlsEnable,
+		tlsKey:    opts.tlsKey,
+		tlsCert:   opts.tlsCert,
+		port:      opts.port,
+		handler:   opts.router,
+		logger:    opts.logger,
 	}
 }
 
@@ -116,44 +137,73 @@ type IServer interface {
 }
 
 type Server struct {
-	port string
-	//config            *NatsConfig
+	tlsEnable bool
+	// base64 encoding of DER format
+	tlsKey string
+	// base64 encoding of DER format
+	tlsCert string
+	port    string
 	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
-	//messageSubscriber *MessageSubscriber
-	logger logur.Logger
-	stop   chan interface{}
+	logger  logur.Logger
+	stop    chan interface{}
 }
 
 func (srv *Server) start(started ...chan interface{}) (err error) {
+	var server *http.Server
+	var tlsConfig *tls.Config
 
 	if srv.handler == nil {
 		return errors.New("Handler not found")
 	}
 
-	if srv.port == "" {
-		return errors.New("Port not found")
-	}
-
-	//config := srv.config
-	//if config == nil {
-	//	return errors.New("nats: NatsConfig can not be nil")
-	//}
-
 	if srv.logger == nil {
 		return errors.New("Logger can not be empty")
 	}
 
-	h := &http.Server{
-		Addr:    ":" + srv.port,
-		Handler: srv.handler,
+	if srv.tlsEnable {
+		if srv.tlsKey == "" {
+			return errors.New("tlsKey is missing")
+		}
+		if srv.tlsCert == "" {
+			return errors.New("tlsCert is missing")
+		}
+
+		cert, err := tls.X509KeyPair([]byte(srv.tlsCert), []byte(srv.tlsKey))
+		if err != nil {
+			return errors.WithMessage(err, "cannot load key pair")
+		}
+
+		// Construct a tls.config
+		tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			// Other options
+		}
 	}
 
 	go func() {
-		srv.logger.Info("Https server started")
+		server = &http.Server{
+			Handler: srv.handler,
+			// Other options
+		}
+
+		if srv.port != "" {
+			server.Addr = ":" + srv.port
+		}
+
 		for i := range started {
 			started[i] <- true
 		}
-		if err = h.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+
+		srv.logger.Info("Http server started")
+
+		if srv.tlsEnable {
+			server.TLSConfig = tlsConfig
+			err = server.ListenAndServeTLS("", "")
+		} else {
+			err = server.ListenAndServe()
+		}
+
+		if err != nil && err != http.ErrServerClosed {
 			srv.logger.Error(fmt.Sprintf("listen:%+s\n", err))
 		}
 	}()
@@ -169,18 +219,18 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 	case <-done:
 	}
 
-	srv.logger.Info("Https server stopped")
+	srv.logger.Info("Http server stopped")
 
 	ctxShutDown, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer func() {
 		cancel()
 	}()
 
-	if err = h.Shutdown(ctxShutDown); err != nil {
+	if err = server.Shutdown(ctxShutDown); err != nil {
 		srv.logger.Error(fmt.Sprintf("server Shutdown Failed:%+s", err))
 	}
 
-	srv.logger.Info("Https server exited properly")
+	srv.logger.Info("Http server exited properly")
 
 	if err == http.ErrServerClosed {
 		err = nil
@@ -194,4 +244,21 @@ func (srv *Server) Stop() {
 		srv.stop <- "stop"
 		close(srv.stop)
 	}
+}
+
+func getLogger(options []Option) logur.Logger {
+	var logger logur.Logger
+	opts := Options{
+		router: titan.NewRouter(chi.NewRouter()),
+	}
+	for _, f := range options {
+		f(&opts)
+	}
+	if opts.logger != nil {
+		logger = opts.logger
+	} else {
+		logger = titan.GetLogger()
+	}
+
+	return log.WithFields(logger, map[string]interface{}{"tlsEnable": opts.tlsEnable, "port": opts.port})
 }
