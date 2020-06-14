@@ -93,6 +93,9 @@ func TestHttpsHealthEndPoint(t *testing.T) {
 	client := &http.Client{Transport: transCfg}
 
 	resp, err := client.Get(fmt.Sprintf("https://localhost:%s/health", port))
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
 	require.Nil(t, err)
 	require.Equal(t, resp.StatusCode, 200)
