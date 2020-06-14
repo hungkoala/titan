@@ -36,7 +36,6 @@ func TestGetRequest(t *testing.T) {
 	port := "6968"
 	server := restful.NewServer(restful.Port(port),
 		restful.Routes(func(r titan.Router) {
-
 			r.Register("GET", "/api/service/test/get/{id}", func(c *titan.Context, rq *titan.Request) *titan.Response {
 				return titan.NewResBuilder().
 					BodyJSON(&GetResult{
@@ -119,7 +118,9 @@ func TestHttpsClient(t *testing.T) {
 		restful.Port(port),
 		restful.TlsEnable(true),
 		restful.TlsCert(cert),
-		restful.TlsKey(key))
+		restful.TlsKey(key),
+		restful.SocketEnable(true),
+	)
 
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()

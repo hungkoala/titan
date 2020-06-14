@@ -3,6 +3,8 @@ package socket
 import (
 	"encoding/json"
 
+	"gitlab.com/silenteer-oss/titan"
+
 	"gitlab.com/silenteer-oss/hestia/socket_service/api"
 
 	"strconv"
@@ -11,6 +13,8 @@ import (
 	"emperror.dev/errors"
 	"logur.dev/logur"
 )
+
+type Session titan.UserInfo
 
 type Socket interface {
 	GetId() string

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,6 +43,8 @@ type Options struct {
 	port string
 
 	socketEnable bool // accept socket connection
+
+	socketHandler map[string]socket.HandlerFunc
 }
 
 func Logger(logger logur.Logger) Option {
@@ -86,11 +89,37 @@ func Routes(r func(titan.Router)) Option {
 	}
 }
 
+func SocketRoute(path string, h socket.HandlerFunc) Option {
+	return func(o *Options) error {
+		o.socketHandler[path] = h
+		return nil
+	}
+}
+
 func SocketEnable(v bool) Option {
 	return func(o *Options) error {
 		o.socketEnable = v
 		return nil
 	}
+}
+
+type IServer interface {
+	Stop()
+	Start(started ...chan interface{})
+}
+
+type Server struct {
+	tlsEnable bool
+	// base64 encoding of DER format
+	tlsKey string
+	// base64 encoding of DER format
+	tlsCert       string
+	port          string
+	handler       http.Handler // handler to invoke, http.DefaultServeMux if nil
+	logger        logur.Logger
+	stop          chan interface{}
+	socketManager *socket.SocketManager
+	socketHandler map[string]socket.HandlerFunc
 }
 
 func NewServer(options ...Option) *Server {
@@ -108,8 +137,9 @@ func NewServer(options ...Option) *Server {
 
 	// default options
 	opts := Options{
-		logger: logger,
-		router: titan.NewRouter(r),
+		logger:        logger,
+		router:        titan.NewRouter(r),
+		socketHandler: make(map[string]socket.HandlerFunc),
 	}
 
 	// merge options with user define
@@ -138,17 +168,21 @@ func NewServer(options ...Option) *Server {
 	})
 
 	srv := &Server{
-		tlsEnable: opts.tlsEnable,
-		tlsKey:    opts.tlsKey,
-		tlsCert:   opts.tlsCert,
-		port:      opts.port,
-		handler:   opts.router,
-		logger:    opts.logger,
+		tlsEnable:     opts.tlsEnable,
+		tlsKey:        opts.tlsKey,
+		tlsCert:       opts.tlsCert,
+		port:          opts.port,
+		handler:       opts.router,
+		logger:        opts.logger,
+		socketHandler: opts.socketHandler,
 	}
 
 	if opts.socketEnable {
 		srv.socketManager = socket.InitSocketManager(opts.logger)
 	}
+
+	fmt.Println("siiiiii  === ", len(srv.socketHandler))
+
 	return srv
 }
 
@@ -158,24 +192,6 @@ func (srv *Server) Start(started ...chan interface{}) {
 		srv.logger.Error(fmt.Sprintf("Nats server start error: %+v\n ", err))
 		os.Exit(1)
 	}
-}
-
-type IServer interface {
-	Stop()
-	Start(started ...chan interface{})
-}
-
-type Server struct {
-	tlsEnable bool
-	// base64 encoding of DER format
-	tlsKey string
-	// base64 encoding of DER format
-	tlsCert       string
-	port          string
-	handler       http.Handler // handler to invoke, http.DefaultServeMux if nil
-	logger        logur.Logger
-	stop          chan interface{}
-	socketManager *socket.SocketManager
 }
 
 func (srv *Server) start(started ...chan interface{}) (err error) {
@@ -226,6 +242,11 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 		server = &http.Server{
 			Handler: srv.handler,
 			// Other options
+		}
+
+		// use proxy instead
+		if srv.socketManager != nil {
+			server.Handler = srv
 		}
 
 		if srv.port != "" {
@@ -290,4 +311,28 @@ func (srv *Server) Stop() {
 		srv.stop <- "stop"
 		close(srv.stop)
 	}
+}
+
+// the socket proxy
+func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			var err error
+			err, ok = r.(error)
+			if !ok {
+				err = fmt.Errorf("panic : %v", r)
+			}
+			srv.logger.Error(fmt.Sprintf("&&&&  HTTP Sockket panic error %+v\n ", err))
+		}
+	}()
+
+	// is this socket request
+	if f, ok := srv.socketHandler[strings.ToLower(r.RequestURI)]; ok {
+		f(srv.socketManager, srv.logger, w, r)
+		return
+	}
+
+	//normal http request
+	srv.handler.ServeHTTP(w, r)
 }

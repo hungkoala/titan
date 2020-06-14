@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/silenteer-oss/titan"
+
 	"github.com/gorilla/websocket"
 	"logur.dev/logur"
 )
@@ -37,13 +39,25 @@ type BaseSocket struct {
 	// Buffered channel of outbound messages.
 	send chan []byte
 
-	onMessage func([]byte)
+	OnMessage func([]byte)
 
 	id string
 
-	logger logur.Logger
+	Logger logur.Logger
 
 	isClosed bool
+}
+
+func NewBaseSocket(session *Session, conn *websocket.Conn, socketManager *SocketManager, logger logur.Logger) BaseSocket {
+	id := titan.RandomString(20)
+	return BaseSocket{
+		session:       session,
+		conn:          conn,
+		socketManager: socketManager,
+		send:          make(chan []byte, 9000),
+		id:            id,
+		Logger:        logur.WithFields(logger, map[string]interface{}{"id": id}),
+	}
 }
 
 func (a *BaseSocket) Close() {
@@ -77,9 +91,9 @@ func (a *BaseSocket) GetId() string {
 func (a *BaseSocket) StartReader() {
 	defer func() {
 		if r := recover(); r != nil {
-			a.logger.Debug("Panic Recovered in socket reader")
+			a.Logger.Debug("Panic Recovered in socket reader")
 		}
-		a.logger.Debug("Reader: Socket connection  is closing")
+		a.Logger.Debug("Reader: Socket connection  is closing")
 		a.socketManager.UnRegister(a)
 		a.conn.Close()
 	}()
@@ -95,12 +109,12 @@ func (a *BaseSocket) StartReader() {
 		_, message, err := a.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				a.logger.Error(fmt.Sprintf("Socket Unexpected Close Error %+v\n ", err))
+				a.Logger.Error(fmt.Sprintf("Socket Unexpected Close Error %+v\n ", err))
 			}
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		a.onMessage(message)
+		a.OnMessage(message)
 
 	}
 }
@@ -109,9 +123,9 @@ func (a *BaseSocket) StartWriter() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		if r := recover(); r != nil {
-			a.logger.Debug("Panic Recovered in socket writer")
+			a.Logger.Debug("Panic Recovered in socket writer")
 		}
-		a.logger.Debug("Writer: Socket connection  is closing")
+		a.Logger.Debug("Writer: Socket connection  is closing")
 		ticker.Stop()
 		a.conn.Close()
 	}()
@@ -139,7 +153,7 @@ func (a *BaseSocket) StartWriter() {
 		case <-ticker.C:
 			_ = a.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := a.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-				a.logger.Debug("can't ping client", map[string]interface{}{"err": err})
+				a.Logger.Debug("can't ping client", map[string]interface{}{"err": err})
 				return
 			}
 		}
