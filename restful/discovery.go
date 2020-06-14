@@ -19,6 +19,6 @@ func (d *EnvDiscovery) LookupService(serviceName string) (string, error) {
 	return add, nil
 }
 
-// consul service discovery, not implemented yet
+// Consul service discovery, not implemented yet
 type ConsulDiscovery struct {
 }
