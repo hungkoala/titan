@@ -180,9 +180,6 @@ func NewServer(options ...Option) *Server {
 	if opts.socketEnable {
 		srv.socketManager = socket.InitSocketManager(opts.logger)
 	}
-
-	fmt.Println("siiiiii  === ", len(srv.socketHandler))
-
 	return srv
 }
 

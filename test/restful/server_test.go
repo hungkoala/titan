@@ -75,7 +75,7 @@ func TestGetRequest(t *testing.T) {
 
 func TestHttpsHealthEndPoint(t *testing.T) {
 	//1. setup server
-	port := "6968"
+	port := "6965"
 
 	server := restful.NewServer(
 		restful.Port(port),
@@ -94,7 +94,7 @@ func TestHttpsHealthEndPoint(t *testing.T) {
 
 	resp, err := client.Get(fmt.Sprintf("https://localhost:%s/health", port))
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(fmt.Sprintf("Error %+v", err))
 	}
 
 	require.Nil(t, err)
