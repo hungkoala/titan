@@ -18,10 +18,17 @@ import (
 )
 
 var hostname string
-var natConfig NatsConfig
-var logConfig log.Config
-var defaultClient *Client
+
+var natConfigOnce sync.Once
+var natConfig *NatsConfig
+
+var logConfigOnce sync.Once
+var logConfig *log.Config
+
 var mux sync.Mutex
+var defaultClient *Client
+
+var loggerOnce sync.Once
 var logger logur.Logger
 
 const (
@@ -51,23 +58,10 @@ func init() {
 	viper.SetDefault(LoggingFormat, "logfmt")
 	viper.SetDefault(LoggingLevel, "debug")
 	viper.SetDefault(LoggingNoColor, false)
-	logConfig = log.Config{
-		Format:  viper.GetString(LoggingFormat),
-		Level:   viper.GetString(LoggingLevel),
-		NoColor: viper.GetBool(LoggingNoColor),
-	}
-	logger = log.WithFields(log.NewLogger(&logConfig), map[string]interface{}{"hostname": hostname})
 
 	// nats
 	viper.SetDefault(NatsServers, "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault(NatsReadTimeout, 99999)
-	natConfig = NatsConfig{
-		Servers:     viper.GetString(NatsServers),
-		ReadTimeout: viper.GetInt(NatsReadTimeout),
-	}
-
-	logger.Debug("NATS Config :", map[string]interface{}{"Servers": natConfig.Servers, "ReadTimeout": natConfig.ReadTimeout})
-	logger.Debug("Log Config :", map[string]interface{}{"format": logConfig.Format, "level": logConfig.Level, "NoColor": logConfig.NoColor})
 }
 
 type NatsConfig struct {
@@ -80,20 +74,30 @@ func (c NatsConfig) GetReadTimeoutDuration() time.Duration {
 }
 
 func GetNatsConfig() *NatsConfig {
-	return &natConfig
+	natConfigOnce.Do(func() { // <-- atomic, does not allow repeating
+		natConfig = &NatsConfig{
+			Servers:     viper.GetString(NatsServers),
+			ReadTimeout: viper.GetInt(NatsReadTimeout),
+		}
+	})
+	return natConfig
 }
 
 func GetLogConfig() *log.Config {
-	return &logConfig
+	logConfigOnce.Do(func() { // <-- atomic, does not allow repeating
+		logConfig = &log.Config{
+			Format:  viper.GetString(LoggingFormat),
+			Level:   viper.GetString(LoggingLevel),
+			NoColor: viper.GetBool(LoggingNoColor),
+		}
+	})
+	return logConfig
 }
 
 func GetLogger() logur.Logger {
-	if logger != nil {
-		return logger
-	}
-	mux.Lock()
-	logger = log.WithFields(log.NewLogger(GetLogConfig()), map[string]interface{}{"hostname": hostname})
-	mux.Unlock()
+	loggerOnce.Do(func() { // <-- atomic, does not allow repeating
+		logger = log.WithFields(log.NewLogger(GetLogConfig()), map[string]interface{}{"hostname": hostname})
+	})
 	return logger
 }
 

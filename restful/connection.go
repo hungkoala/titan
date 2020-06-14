@@ -14,19 +14,20 @@ import (
 )
 
 type Connection struct {
-	client *http.Client
-	add    string // example : https://192.168.1.10:8080/
+	client    *http.Client
+	discovery Discovery
+	//add    string // example : https://192.168.1.10:8080/
 }
 
-func NewConnection(add string) titan.IConnection {
+func NewConnection(discovery Discovery) titan.IConnection {
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // ignore expired SSL certificates
 	}
 	client := &http.Client{Transport: transCfg}
 
 	return &Connection{
-		add:    add,
-		client: client,
+		discovery: discovery,
+		client:    client,
 	}
 }
 
@@ -37,7 +38,12 @@ func (c *Connection) SendRequest(rq *titan.Request, subject string) (*titan.Resp
 	}
 	request.Header.Del("application/json")
 
-	urlString := fmt.Sprintf("%s/%s", strings.TrimSuffix(c.add, "/"), strings.TrimPrefix(rq.URL, "/"))
+	add, err := c.discovery.LookupService(subject)
+	if err != nil {
+		return nil, err
+	}
+
+	urlString := fmt.Sprintf("%s/%s", strings.TrimSuffix(add, "/"), strings.TrimPrefix(rq.URL, "/"))
 	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil, err

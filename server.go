@@ -64,8 +64,14 @@ func Subscribe(r func(*MessageSubscriber)) Option {
 }
 
 func NewServer(subject string, options ...Option) *Server {
+
 	// default logger
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
+	natConfig := GetNatsConfig()
+	logConfig := GetLogConfig()
+
+	logger.Debug("NATS Config :", map[string]interface{}{"Servers": natConfig.Servers, "ReadTimeout": natConfig.ReadTimeout})
+	logger.Debug("Log Config :", map[string]interface{}{"format": logConfig.Format, "level": logConfig.Level, "NoColor": logConfig.NoColor})
 
 	r := chi.NewRouter()
 	r.Use(NewMiddleware("NATS", logger))

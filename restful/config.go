@@ -3,6 +3,8 @@ package restful
 import (
 	"fmt"
 
+	"gitlab.com/silenteer-oss/titan"
+
 	"github.com/spf13/viper"
 )
 
@@ -35,6 +37,7 @@ func getDefaultConfig() []Option {
 		TlsCert(viper.GetString(C_TlsCert)),
 		TlsKey(viper.GetString(C_TlsKey)),
 		Port(viper.GetString(C_Port)),
+		Logger(titan.GetLogger()),
 	}
 	return options
 }

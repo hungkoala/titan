@@ -1,10 +1,9 @@
 package restful
 
-import (
-	"gitlab.com/silenteer-oss/titan"
-)
+import "gitlab.com/silenteer-oss/titan"
 
-func NewClient(add string) *titan.Client {
-	conn := NewConnection(add)
+func NewRestClient() *titan.Client {
+	discovery := NewEnvDiscovery()
+	conn := NewConnection(discovery)
 	return titan.NewClient(conn)
 }

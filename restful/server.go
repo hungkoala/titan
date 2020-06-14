@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/silenteer-oss/titan/log"
+	"gitlab.com/silenteer-oss/titan/socket"
 
 	"github.com/go-chi/chi/middleware"
 
@@ -40,6 +40,8 @@ type Options struct {
 	tlsCert string
 
 	port string
+
+	socketEnable bool // accept socket connection
 }
 
 func Logger(logger logur.Logger) Option {
@@ -84,9 +86,16 @@ func Routes(r func(titan.Router)) Option {
 	}
 }
 
+func SocketEnable(v bool) Option {
+	return func(o *Options) error {
+		o.socketEnable = v
+		return nil
+	}
+}
+
 func NewServer(options ...Option) *Server {
 	// default logger
-	logger := getLogger(options)
+	logger := titan.GetLogger()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -113,7 +122,22 @@ func NewServer(options ...Option) *Server {
 		}
 	}
 
-	return &Server{
+	logConfig := titan.GetLogConfig()
+	logger.Debug("Server Log Config :", map[string]interface{}{
+		"format":  logConfig.Format,
+		"level":   logConfig.Level,
+		"NoColor": logConfig.NoColor,
+	})
+
+	logger.Debug("Server Http Config :", map[string]interface{}{
+		"tlsEnable":    opts.tlsEnable,
+		"port":         opts.port,
+		"socketEnable": opts.socketEnable,
+		//"cert":         opts.tlsCert,
+		//"key":          opts.tlsKey,
+	})
+
+	srv := &Server{
 		tlsEnable: opts.tlsEnable,
 		tlsKey:    opts.tlsKey,
 		tlsCert:   opts.tlsCert,
@@ -121,6 +145,11 @@ func NewServer(options ...Option) *Server {
 		handler:   opts.router,
 		logger:    opts.logger,
 	}
+
+	if opts.socketEnable {
+		srv.socketManager = socket.InitSocketManager(opts.logger)
+	}
+	return srv
 }
 
 func (srv *Server) Start(started ...chan interface{}) {
@@ -141,11 +170,12 @@ type Server struct {
 	// base64 encoding of DER format
 	tlsKey string
 	// base64 encoding of DER format
-	tlsCert string
-	port    string
-	handler http.Handler // handler to invoke, http.DefaultServeMux if nil
-	logger  logur.Logger
-	stop    chan interface{}
+	tlsCert       string
+	port          string
+	handler       http.Handler // handler to invoke, http.DefaultServeMux if nil
+	logger        logur.Logger
+	stop          chan interface{}
+	socketManager *socket.SocketManager
 }
 
 func (srv *Server) start(started ...chan interface{}) (err error) {
@@ -181,6 +211,18 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				var ok bool
+				var err error
+				err, ok = r.(error)
+				if !ok {
+					err = fmt.Errorf("panic : %v", r)
+				}
+				srv.logger.Error(fmt.Sprintf("&&&&  HTTP Sockket panic error %+v\n ", err))
+			}
+		}()
+
 		server = &http.Server{
 			Handler: srv.handler,
 			// Other options
@@ -207,6 +249,10 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 			srv.logger.Error(fmt.Sprintf("listen:%+s\n", err))
 		}
 	}()
+
+	if srv.socketManager != nil {
+		srv.socketManager.Start()
+	}
 
 	// Handle SIGINT and SIGTERM.
 	done := make(chan os.Signal, 1)
@@ -244,21 +290,4 @@ func (srv *Server) Stop() {
 		srv.stop <- "stop"
 		close(srv.stop)
 	}
-}
-
-func getLogger(options []Option) logur.Logger {
-	var logger logur.Logger
-	opts := Options{
-		router: titan.NewRouter(chi.NewRouter()),
-	}
-	for _, f := range options {
-		f(&opts)
-	}
-	if opts.logger != nil {
-		logger = opts.logger
-	} else {
-		logger = titan.GetLogger()
-	}
-
-	return log.WithFields(logger, map[string]interface{}{"tlsEnable": opts.tlsEnable, "port": opts.port})
 }

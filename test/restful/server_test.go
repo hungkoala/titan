@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
@@ -129,8 +131,8 @@ func TestHttpsClient(t *testing.T) {
 	request, err := titan.NewReqBuilder().Get("/health").Build()
 	require.Nil(t, err)
 
-	err = restful.
-		NewClient(fmt.Sprintf("https://localhost:%s", port)).
+	viper.Set("health", fmt.Sprintf("https://localhost:%s", port))
+	err = restful.NewRestClient().
 		SendAndReceiveJson(ctx, request, &result)
 	require.Nil(t, err)
 	assert.NotEmpty(t, result.Status, "UP")
