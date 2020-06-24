@@ -31,61 +31,61 @@ const (
 )
 
 type BaseSocket struct {
-	session *Session
+	Session *Session
 	// The websocket connection.
 	conn          *websocket.Conn
-	socketManager *SocketManager
+	SocketManager *SocketManager
 
 	// Buffered channel of outbound messages.
 	send chan []byte
 
 	OnMessage func([]byte)
 
-	id string
+	Id string
 
 	Logger logur.Logger
 
-	isClosed bool
+	IsClosed bool
 }
 
 func NewBaseSocket(session *Session, conn *websocket.Conn, socketManager *SocketManager, logger logur.Logger) BaseSocket {
 	id := titan.RandomString(20)
 	return BaseSocket{
-		session:       session,
+		Session:       session,
 		conn:          conn,
-		socketManager: socketManager,
+		SocketManager: socketManager,
 		send:          make(chan []byte, 9000),
-		id:            id,
+		Id:            id,
 		Logger:        logur.WithFields(logger, map[string]interface{}{"id": id}),
 	}
 }
 
 func (a *BaseSocket) Close() {
-	if a.isClosed {
+	if a.IsClosed {
 		return
 	}
 	close(a.send)
-	a.isClosed = true
+	a.IsClosed = true
 }
 
 func (a *BaseSocket) Send(message []byte) {
-	if a.isClosed {
+	if a.IsClosed {
 		return
 	}
 	select {
 	case a.send <- message:
 	default: //cannot send to it because channel has been closed
-		a.socketManager.UnRegister(a)
+		a.SocketManager.UnRegister(a)
 		a.Close()
 	}
 }
 
 func (a *BaseSocket) GetSession() *Session {
-	return a.session
+	return a.Session
 }
 
 func (a *BaseSocket) GetId() string {
-	return a.id
+	return a.Id
 }
 
 func (a *BaseSocket) StartReader() {
@@ -94,7 +94,7 @@ func (a *BaseSocket) StartReader() {
 			a.Logger.Debug("Panic Recovered in socket reader")
 		}
 		a.Logger.Debug("Reader: Socket connection  is closing")
-		a.socketManager.UnRegister(a)
+		a.SocketManager.UnRegister(a)
 		a.conn.Close()
 	}()
 

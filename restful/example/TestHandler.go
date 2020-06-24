@@ -14,9 +14,6 @@ import (
 	"logur.dev/logur"
 )
 
-type TestHandler struct {
-}
-
 func Handle(socketManager *socket.SocketManager, logger logur.Logger, w http.ResponseWriter, r *http.Request) {
 	// check and set header
 	if r.Header.Get(titan.XRequestId) == "" {
@@ -38,7 +35,7 @@ func Handle(socketManager *socket.SocketManager, logger logur.Logger, w http.Res
 
 	client := CreateDefaultSocket(session, wsConn, socketManager, logger)
 	client.StartHandler()
-	go client.SendKaka()
+	go client.SendRandomLatLong()
 }
 
 // ----------------------- Login user socket -----------------------------------------------------------------
@@ -79,7 +76,7 @@ func (c *DefaultSocket) sendMessageResponse(message *longLatStruct) {
 	}
 }
 
-func (c *DefaultSocket) SendKaka() {
+func (c *DefaultSocket) SendRandomLatLong() {
 	rand.Seed(42)
 	ticker := time.NewTicker(500 * time.Millisecond)
 	done := make(chan bool)
@@ -94,9 +91,8 @@ func (c *DefaultSocket) SendKaka() {
 					Long: rand.Float64(),
 					Lat:  rand.Float64(),
 				}
-				latlong := fmt.Sprintf("%f %f", k.Lat, k.Long)
-				c.Send([]byte(latlong))
-				//c.sendMessageResponse(&k)
+				latLong := fmt.Sprintf("%f %f", k.Lat, k.Long)
+				c.Send([]byte(latLong))
 			}
 		}
 	}()
