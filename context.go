@@ -99,19 +99,19 @@ func (c *Context) UserInfo() *UserInfo {
 }
 
 func (c *Context) UserInfoJson() string {
-	if c.cachedUserInfoJson == nil {
-		c.mux.Lock()
-		useInfo := c.UserInfo()
-		value := ""
-		if useInfo != nil {
-			b, err := json.Marshal(useInfo)
-			if err == nil {
-				value = string(b)
-			}
+	//if c.cachedUserInfoJson == nil {
+	c.mux.Lock()
+	useInfo := c.UserInfo()
+	value := ""
+	if useInfo != nil {
+		b, err := json.Marshal(useInfo)
+		if err == nil {
+			value = string(b)
 		}
-		c.cachedUserInfoJson = &String{Value: value}
-		c.mux.Unlock()
 	}
+	c.cachedUserInfoJson = &String{Value: value}
+	c.mux.Unlock()
+	//}
 	return c.cachedUserInfoJson.Value
 }
 
@@ -128,4 +128,24 @@ func ParsePathParams(ctx context.Context) PathParams {
 		}
 	}
 	return rParams
+}
+
+// dangerously! only use this function after authentication
+func (c *Context) LoginToCareProviderAsRoleMustBeUsedAfterAuthentication(careProviderId string, role Role) *Context {
+	var userInfo UserInfo
+	if c.UserInfo() == nil {
+		userInfo = UserInfo{}
+	} else {
+		u := c.UserInfo()
+		userInfo = UserInfo{
+			ExternalUserId: u.ExternalUserId,
+			UserId:         u.UserId,
+			DeviceId:       u.DeviceId,
+			Attributes:     u.Attributes,
+		}
+	}
+	userInfo.CareProviderId = UUID(careProviderId)
+	userInfo.CareProviderKey = ""
+	userInfo.Role = role
+	return c.WithValue(XUserInfo, &userInfo)
 }
