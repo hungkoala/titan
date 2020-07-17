@@ -1,6 +1,13 @@
 package main
 
-import "gitlab.com/silenteer-oss/titan/restful"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
+	"gitlab.com/silenteer-oss/titan"
+	"gitlab.com/silenteer-oss/titan/restful"
+)
 
 func main() {
 
@@ -9,12 +16,25 @@ func main() {
 
 	port := "8844"
 
+	// intelij debug case
+	abs := titan.AbsPathify(".")
+	aresPath := "/titan"
+	resourcePath := ""
+	if strings.Contains(abs, aresPath) {
+		abs = abs[:strings.LastIndex(abs, aresPath)+len(aresPath)]
+		resourcePath = filepath.Join(abs, "restful", "example", "resources")
+	} else {
+		resourcePath = filepath.Join(abs, "resources")
+	}
+	fmt.Println(resourcePath)
+
 	server := restful.NewServer(
 		restful.Port(port),
-		restful.TlsEnable(false),
+		restful.TlsEnable(true),
 		restful.TlsCert(cert),
 		restful.TlsKey(key),
-		restful.SocketEnable(true), restful.SocketRoute("/ws", Handle),
+		//restful.SocketEnable(true), restful.SocketRoute("/ws", Handle),
+		restful.Static("document", resourcePath),
 	)
 
 	server.Start()

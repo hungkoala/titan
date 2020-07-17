@@ -45,6 +45,8 @@ type Options struct {
 	socketEnable bool // accept socket connection
 
 	socketHandler map[string]socket.HandlerFunc
+
+	statics map[string]string // Serve static files
 }
 
 func Logger(logger logur.Logger) Option {
@@ -103,6 +105,16 @@ func SocketEnable(v bool) Option {
 	}
 }
 
+func Static(path, directory string) Option {
+	return func(o *Options) error {
+		if o.statics == nil {
+			o.statics = make(map[string]string)
+		}
+		o.statics[path] = directory
+		return nil
+	}
+}
+
 type IServer interface {
 	Stop()
 	Start(started ...chan interface{})
@@ -120,6 +132,7 @@ type Server struct {
 	stop          chan interface{}
 	socketManager *socket.SocketManager
 	socketHandler map[string]socket.HandlerFunc
+	statics       map[string]string // Serve static files
 }
 
 func NewServer(options ...Option) *Server {
@@ -129,6 +142,7 @@ func NewServer(options ...Option) *Server {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(titan.NewMiddleware("Http", logger))
+
 	//r.Use(middleware.Timeout(60 * time.Second))
 
 	// set default handlers - health check and build info
@@ -175,11 +189,24 @@ func NewServer(options ...Option) *Server {
 		handler:       opts.router,
 		logger:        opts.logger,
 		socketHandler: opts.socketHandler,
+		statics:       opts.statics,
 	}
 
 	if opts.socketEnable {
 		srv.socketManager = socket.InitSocketManager(opts.logger)
 	}
+
+	//register statics
+	for path, directory := range opts.statics {
+		fmt.Println(strings.TrimRight(fmt.Sprintf("/%s/", path), "/"))
+		fmt.Println("directory=", directory)
+		if path != "" && directory != "" {
+			r.Handle(
+				fmt.Sprintf("/%s/", directory),
+				http.StripPrefix(strings.TrimRight(fmt.Sprintf("/%s/", path), "/"), http.FileServer(http.Dir(directory))))
+		}
+	}
+
 	return srv
 }
 
@@ -242,9 +269,9 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 		}
 
 		// use proxy instead
-		if srv.socketManager != nil {
-			server.Handler = srv
-		}
+		//if srv.socketManager != nil {
+		server.Handler = srv
+		//}
 
 		if srv.port != "" {
 			server.Addr = ":" + srv.port
