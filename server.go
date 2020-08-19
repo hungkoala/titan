@@ -118,6 +118,7 @@ func (srv *Server) Start(started ...chan interface{}) {
 	}
 }
 
+// will change this to ServerInterface to make it consistency
 type IServer interface {
 	Stop()
 	Start(started ...chan interface{})

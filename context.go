@@ -21,16 +21,20 @@ type Context struct {
 }
 
 func NewBackgroundContext() *Context {
-	return &Context{context: context.Background()}
+	return NewContext(context.Background())
 }
 
 func NewContext(c context.Context) *Context {
-	return &Context{context: c}
+	v := c.Value(XGlobalCache)
+	if v != nil {
+		return &Context{context: c}
+	}
+	return &Context{context: context.WithValue(c, XGlobalCache, &GlobalCache{Data: map[string]interface{}{}})}
 }
 
 func (c *Context) WithValue(key, val interface{}) *Context {
 	ctx := context.WithValue(c, key, val)
-	return NewContext(ctx)
+	return &Context{context: ctx}
 }
 
 func (c *Context) Deadline() (deadline time.Time, ok bool) {
@@ -98,6 +102,14 @@ func (c *Context) UserInfo() *UserInfo {
 	return nil
 }
 
+func (c *Context) GlobalCache() *GlobalCache {
+	globalCache, ok := c.Value(XGlobalCache).(*GlobalCache)
+	if ok {
+		return globalCache
+	}
+	return nil
+}
+
 func (c *Context) UserInfoJson() string {
 	//if c.cachedUserInfoJson == nil {
 	c.mux.Lock()
@@ -148,4 +160,8 @@ func (c *Context) LoginToCareProviderAsRoleMustBeUsedAfterAuthentication(carePro
 	userInfo.CareProviderKey = ""
 	userInfo.Role = role
 	return c.WithValue(XUserInfo, &userInfo)
+}
+
+type GlobalCache struct {
+	Data map[string]interface{}
 }

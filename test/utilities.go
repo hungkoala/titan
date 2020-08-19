@@ -78,12 +78,17 @@ func WaitOrTimeoutFor(t *testing.T, ch chan interface{}, timeout int, msg string
 	}
 }
 
+type TestServersInterface interface {
+	Start()
+	Stop()
+}
+
 type TestServers struct {
 	servers []titan.IServer
 }
 
-func NewTestServers(servers ...titan.IServer) TestServers {
-	return TestServers{servers}
+func NewTestServers(servers ...titan.IServer) TestServersInterface {
+	return &TestServers{servers}
 }
 
 func (s *TestServers) Start() {

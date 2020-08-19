@@ -20,6 +20,7 @@ const (
 	XQueryParams    = "X-QUERY-PARAMS"
 	XRequest        = "X-REQUEST"
 	XUserInfo       = "X-Silentium-User" // how to remove this value
+	XGlobalCache    = "X-Global-Cache"   // how to remove this value
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
 )
