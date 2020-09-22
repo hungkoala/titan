@@ -179,12 +179,12 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	if err != nil {
 		var rpErr *Response
 		headers := http.Header{}
-		headers.Add("XRequestId", requestId)
+		headers.Add(XRequestId, requestId)
 
 		if err.Error() == "nats: timeout" {
-			rpErr = &Response{Status: "Request Timeout", StatusCode: 408, Headers: headers}
+			rpErr = &Response{Status: "Request Timeout :" + requestId, StatusCode: 408, Headers: headers}
 		} else {
-			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500, Headers: headers}
+			rpErr = &Response{Status: "Internal Server Error: " + requestId, StatusCode: 500, Headers: headers}
 		}
 		return nil, &ClientResponseError{Message: err.Error(), Response: rpErr, Cause: err}
 	}
