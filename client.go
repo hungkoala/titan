@@ -23,7 +23,7 @@ func NewClient(conn IConnection) *Client {
 
 var null = []byte{'n', 'u', 'l', 'l'}
 
-func (srv *Client) request(ctx *Context, rq *Request, subject string) (*Response, error) {
+func (srv *Client) request(rq *Request, subject string) (*Response, error) {
 	defer func(c IConnection) {
 		_ = c.Flush()
 	}(srv.conn)
@@ -125,10 +125,12 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	t := time.Now()
 	logger := ctx.Logger()
 
-	// copy info inside context
-	if ctx.RequestId() != "" {
-		rq.Headers.Set(XRequestId, ctx.RequestId())
+	// build request id
+	requestId := ctx.RequestId()
+	if requestId == "" {
+		requestId = RandomString(6)
 	}
+	rq.Headers.Set(XRequestId, requestId)
 
 	//todo: copy authentication here
 	userInfoJson := ctx.UserInfoJson()
@@ -136,11 +138,6 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		rq.Headers.Set(XUserInfo, ctx.UserInfoJson())
 	}
 
-	// hacked code,  dont know why we need it, should re-check it in micronaut
-	multiTenantCareProviderId, ok := ctx.Value("multiTenantCareProviderId").(string)
-	if !ok && multiTenantCareProviderId != "" {
-		rq.Headers.Set("multiTenantCareProviderId", multiTenantCareProviderId)
-	}
 	// end of hacked code
 	subject := rq.Subject
 	if rq.Subject == "" {
@@ -150,16 +147,17 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	logUrl := ExtractLoggablePartsFromUrl(rq.URL)
 
 	logger.Debug("Nats client sending request", map[string]interface{}{
-		"url": logUrl, "subject": subject, "id": ctx.RequestId(), "method": rq.Method})
-	rp, err := srv.request(ctx, rq, subject)
+		"url": logUrl, "subject": subject, "id": requestId, "method": rq.Method})
+	rp, err := srv.request(rq, subject)
 
 	// just log event
-	defer func() {
+	defer func(e error) {
 		var status string
-		if err != nil {
+		if e != nil {
 			status = "error"
 			logger.Error(fmt.Sprintf("Nats client receive error %+v", err), map[string]interface{}{
-				"id":         ctx.RequestId(),
+				"id":         requestId,
+				"err":        e.Error(),
 				"url":        logUrl,
 				"status":     status,
 				"subject":    subject,
@@ -169,22 +167,31 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 			status = fmt.Sprintf("%d", rp.StatusCode)
 		}
 		logger.Debug("Nats client request complete", map[string]interface{}{
-			"id":         ctx.RequestId(),
+			"id":         requestId,
 			"url":        logUrl,
 			"status":     status,
 			"subject":    subject,
 			"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 		)
-	}()
+	}(err)
 
+	// server return error object
 	if err != nil {
 		var rpErr *Response
+		headers := http.Header{}
+		headers.Add("XRequestId", requestId)
+
 		if err.Error() == "nats: timeout" {
-			rpErr = &Response{Status: "Request Timeout", StatusCode: 408}
+			rpErr = &Response{Status: "Request Timeout", StatusCode: 408, Headers: headers}
 		} else {
-			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500}
+			rpErr = &Response{Status: "Internal Server Error", StatusCode: 500, Headers: headers}
 		}
 		return nil, &ClientResponseError{Message: err.Error(), Response: rpErr, Cause: err}
+	}
+
+	// server return status code
+	if rp.Headers.Get(XRequestId) == "" {
+		rp.Headers.Add(XRequestId, requestId)
 	}
 
 	if rp.StatusCode >= 400 {
