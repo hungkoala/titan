@@ -1,6 +1,7 @@
 package titan
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -255,8 +256,15 @@ func (srv *Server) Stop() {
 }
 
 func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
-	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, rq *Request) {
-		go func(enc *nats.EncodedConn) {
+	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, r []byte) {
+		go func(enc *nats.EncodedConn, msg []byte) {
+			var rq Request
+			err := json.Unmarshal(msg, &rq)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Nats server desrialize body error: %+v", err))
+				return
+			}
+
 			if rq.Headers == nil {
 				rq.Headers = http.Header{}
 			}
@@ -265,7 +273,7 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				requestID = RandomString(6)
 				rq.Headers.Set(XRequestId, requestID)
 			}
-			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method})
+			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method, "subject": subject})
 
 			defer handlePanic(conn, logWithId, rpSubject)
 
@@ -273,21 +281,21 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				Headers: http.Header{},
 			}
 
-			rq, err := NatsRequestToHttpRequest(rq)
+			httpReq, err := NatsRequestToHttpRequest(&rq)
 			if err != nil {
 				replyError(enc, logWithId, err, rpSubject)
 				return
 			}
 
 			// forward request to Controller
-			handler.ServeHTTP(rp, rq)
+			handler.ServeHTTP(rp, httpReq)
 
 			// send response back
 			err = enc.Publish(rpSubject, rp)
 			if err != nil {
 				logWithId.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
 			}
-		}(conn)
+		}(conn, r)
 	})
 }
 

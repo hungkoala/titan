@@ -127,6 +127,10 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 	// build request id
 	requestId := ctx.RequestId()
+	if requestId == "" && rq.Headers != nil {
+		requestId = rq.Headers.Get(XRequestId)
+	}
+
 	if requestId == "" {
 		requestId = RandomString(6)
 	}
@@ -146,8 +150,8 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 
 	logUrl := ExtractLoggablePartsFromUrl(rq.URL)
 
-	logger.Debug("Nats client sending request", map[string]interface{}{
-		"url": logUrl, "subject": subject, "id": requestId, "method": rq.Method})
+	logger.Debug("Nats client sending request to", map[string]interface{}{
+		"url": logUrl, "target subject": subject, "id": requestId, "method": rq.Method})
 	rp, err := srv.request(rq, subject)
 
 	// just log event
@@ -156,22 +160,22 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		if e != nil {
 			status = "error"
 			logger.Error(fmt.Sprintf("Nats client receive error %+v", err), map[string]interface{}{
-				"id":         requestId,
-				"err":        e.Error(),
-				"url":        logUrl,
-				"status":     status,
-				"subject":    subject,
-				"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
+				"id":             requestId,
+				"err":            e.Error(),
+				"url":            logUrl,
+				"status":         status,
+				"target subject": subject,
+				"elapsed_ms":     float64(time.Since(t).Nanoseconds()) / 1000000.0},
 			)
 		} else {
 			status = fmt.Sprintf("%d", rp.StatusCode)
 		}
 		logger.Debug("Nats client request complete", map[string]interface{}{
-			"id":         requestId,
-			"url":        logUrl,
-			"status":     status,
-			"subject":    subject,
-			"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
+			"id":             requestId,
+			"url":            logUrl,
+			"status":         status,
+			"target subject": subject,
+			"elapsed_ms":     float64(time.Since(t).Nanoseconds()) / 1000000.0},
 		)
 	}(err)
 
