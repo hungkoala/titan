@@ -190,6 +190,9 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	}
 
 	// server return status code
+	if rp.Headers == nil {
+		rp.Headers = http.Header{}
+	}
 	if rp.Headers.Get(XRequestId) == "" {
 		rp.Headers.Add(XRequestId, requestId)
 	}
