@@ -1,4 +1,4 @@
-package restful
+package restful_test
 
 import (
 	context2 "context"
@@ -9,13 +9,13 @@ import (
 	"net/http"
 	"testing"
 
+	"gitlab.com/silenteer-oss/titan/restful"
+
 	"github.com/spf13/viper"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
-
-	"gitlab.com/silenteer-oss/titan/restful"
 
 	"gitlab.com/silenteer-oss/titan/test"
 

@@ -1,4 +1,4 @@
-package test
+package app_test
 
 import (
 	"context"
@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/silenteer-oss/titan/examples/companyservice/internal/app"
+
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/silenteer-oss/titan"
 
 	"gitlab.com/silenteer-oss/titan/examples/companyservice/api"
-
-	"gitlab.com/silenteer-oss/titan/examples/companyservice/internal/app"
 
 	"github.com/stretchr/testify/assert"
 )

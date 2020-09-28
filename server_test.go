@@ -1,4 +1,4 @@
-package test
+package titan_test
 
 import (
 	"context"
@@ -7,10 +7,13 @@ import (
 	"os"
 	"testing"
 
+	"gitlab.com/silenteer-oss/titan"
+
+	"gitlab.com/silenteer-oss/titan/test"
+
 	"emperror.dev/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/silenteer-oss/titan"
 )
 
 type GetResult struct {
@@ -35,7 +38,7 @@ func TestGetRequest(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
@@ -74,7 +77,7 @@ func TestRegisterTopic(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
@@ -111,7 +114,7 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer testServer.Stop()
 
@@ -155,7 +158,7 @@ func TestValidator(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
@@ -187,7 +190,7 @@ func TestAuthorization(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
@@ -212,7 +215,7 @@ func TestDefaultHandlers(t *testing.T) {
 	//1. setup server
 	server := titan.NewServer("api.service.test")
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
@@ -275,13 +278,13 @@ func TestMessageSubscriber(t *testing.T) {
 		}),
 	)
 
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer testServer.Stop()
 
 	//2. test publish
 	perr = client.Publish(ctx, "test", TestBody{Msg: "test msg"})
-	WaitOrTimeout(t, messageReceived, "Message not received")
+	test.WaitOrTimeout(t, messageReceived, "Message not received")
 
 	require.Nil(t, perr)
 	require.Nil(t, perr)
@@ -302,7 +305,7 @@ func TestUnwrapError(t *testing.T) {
 			})
 		}),
 	)
-	testServer := NewTestServer(t, server)
+	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
 
