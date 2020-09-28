@@ -28,6 +28,7 @@ var logConfig *log.Config
 
 var mux sync.Mutex
 var defaultClient *Client
+var defaultClientStop chan interface{}
 
 var loggerOnce sync.Once
 var logger logur.Logger
@@ -111,6 +112,7 @@ func GetDefaultClient() *Client {
 	config := GetNatsConfig()
 	log := GetLogger()
 	mux.Lock()
+	defaultClientStop = make(chan interface{}, 1)
 	conn, err := NewConnection(
 		config.Servers,
 		nats.Timeout(10*time.Second), // connection timeout
@@ -140,9 +142,14 @@ func GetDefaultClient() *Client {
 
 	go func() {
 		done := make(chan os.Signal, 1)
-		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 		// close connection on exit
-		<-done
+
+		select {
+		case <-defaultClientStop:
+		case <-done:
+		}
+		defaultClient = nil
 		conn.Conn.Close()
 	}()
 
@@ -150,4 +157,10 @@ func GetDefaultClient() *Client {
 	mux.Unlock()
 
 	return defaultClient
+}
+
+func CloseDefaultClient() {
+	if defaultClientStop != nil {
+		defaultClientStop <- "stop"
+	}
 }

@@ -45,6 +45,8 @@ type SocketManager struct {
 	unregister chan Socket
 
 	logger logur.Logger
+
+	stop chan interface{}
 }
 
 func InitSocketManager(logger logur.Logger) *SocketManager {
@@ -54,6 +56,7 @@ func InitSocketManager(logger logur.Logger) *SocketManager {
 		unregister: make(chan Socket, 1000),
 		clients:    make(map[string]Socket),
 		logger:     logger,
+		stop:       make(chan interface{}, 1),
 	}
 }
 
@@ -116,12 +119,20 @@ func (m *SocketManager) run() {
 			}
 		case <-ticker.C:
 			m.logger.Debug("++++++++++++++++++ socket manager is running ....., total= " + strconv.Itoa(len(m.clients)))
+		case <-m.stop:
+			return
 		}
 	}
 }
 
 func (m *SocketManager) Start() {
 	go panicRecover(m.run)
+}
+
+func (m *SocketManager) Stop() {
+	if m.stop != nil {
+		m.stop <- "stop"
+	}
 }
 
 func (m *SocketManager) CloseAll() {

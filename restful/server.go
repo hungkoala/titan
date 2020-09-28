@@ -310,6 +310,10 @@ func (srv *Server) start(started ...chan interface{}) (err error) {
 	case <-done:
 	}
 
+	if srv.socketManager != nil {
+		srv.socketManager.Stop()
+	}
+
 	srv.logger.Info("Http server stopped")
 
 	ctxShutDown, cancel := context.WithTimeout(context.Background(), 20*time.Second)

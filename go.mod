@@ -16,7 +16,10 @@ require (
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/testify v1.5.1
 	gitlab.com/silenteer-oss/hestia v1.0.30
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
+	go.uber.org/goleak v1.1.10
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
+	golang.org/x/net v0.0.0-20200822124328-c89045814202
+	golang.org/x/tools v0.0.0-20200925191224-5d1fdd8fa346 // indirect
 	logur.dev/adapter/logrus v0.4.1
 	logur.dev/logur v0.16.2
 )
