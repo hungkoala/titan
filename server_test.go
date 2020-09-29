@@ -7,8 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"go.uber.org/goleak"
-
 	"gitlab.com/silenteer-oss/titan"
 
 	"gitlab.com/silenteer-oss/titan/test"
@@ -22,12 +20,6 @@ type GetResult struct {
 	RequestId   string            `json:"RequestId"`
 	QueryParams titan.QueryParams `json:"QueryParams"`
 	PathParams  titan.PathParams  `json:"PathParams"`
-}
-
-func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
-	exitVal := m.Run()
-	os.Exit(exitVal)
 }
 
 func TestGetRequest(t *testing.T) {
@@ -49,7 +41,6 @@ func TestGetRequest(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	request, _ := titan.NewReqBuilder().
@@ -89,7 +80,6 @@ func TestRegisterTopic(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	request, _ := titan.NewReqBuilder().
@@ -127,7 +117,6 @@ func TestPostRequestUsingHandlerJson(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer testServer.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	potsRequest := &PostRequest{FirstName: "", LastName: ""}
@@ -172,7 +161,6 @@ func TestValidator(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	potsRequest := &TestValidationRequest{FirstName: "", LastName: ""}
@@ -205,7 +193,6 @@ func TestAuthorization(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	potsRequest := &TestValidationRequest{FirstName: "", LastName: ""}
@@ -231,7 +218,6 @@ func TestDefaultHandlers(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. test health endPoint
 	request, _ := titan.NewReqBuilder().
@@ -295,7 +281,6 @@ func TestMessageSubscriber(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer testServer.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. test publish
 	perr = client.Publish(ctx, "test", TestBody{Msg: "test msg"})
@@ -323,7 +308,6 @@ func TestUnwrapError(t *testing.T) {
 	testServer := test.NewTestServer(t, server)
 	testServer.Start()
 	defer server.Stop()
-	defer titan.CloseDefaultClient()
 
 	//2. client request it
 	request, _ := titan.NewReqBuilder().Get("/api/service/test/error").Build()
