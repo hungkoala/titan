@@ -33,7 +33,7 @@ func main() {
 		restful.TlsEnable(true),
 		restful.TlsCert(cert),
 		restful.TlsKey(key),
-		//restful.SocketEnable(true), restful.SocketRoute("/ws", Handle),
+		restful.Cores([]string{"*"}),
 		restful.Static("document", resourcePath),
 	)
 
