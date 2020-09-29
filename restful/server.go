@@ -378,8 +378,9 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func extractCorsDomain(options ...Option) []string {
+	r := chi.NewRouter()
 	optionsWithCORS := Options{
-		router: &titan.Mux{},
+		router: titan.NewRouter(r),
 	}
 	for _, o := range options {
 		o(&optionsWithCORS)
