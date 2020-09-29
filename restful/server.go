@@ -14,6 +14,7 @@ import (
 	"gitlab.com/silenteer-oss/titan/socket"
 
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 
 	"gitlab.com/silenteer-oss/titan"
 
@@ -28,25 +29,16 @@ type Option func(*Options) error
 
 // Options can be used to create a customized connection.
 type Options struct {
-	logger logur.Logger
-
-	router titan.Router
-
-	tlsEnable bool
-
-	// base64 encoding of DER format
-	tlsKey string
-
-	// base64 encoding of DER format
-	tlsCert string
-
-	port string
-
-	socketEnable bool // accept socket connection
-
+	logger        logur.Logger
+	router        titan.Router
+	tlsEnable     bool   // base64 encoding of DER format
+	tlsKey        string // base64 encoding of DER format
+	tlsCert       string
+	port          string
+	socketEnable  bool // accept socket connection
 	socketHandler map[string]socket.HandlerFunc
-
-	statics map[string]string // Serve static files
+	statics       map[string]string // Serve static files
+	corsDomain    []string          // allow cors by domains name
 }
 
 func Logger(logger logur.Logger) Option {
@@ -66,6 +58,14 @@ func TlsEnable(v bool) Option {
 func TlsKey(v string) Option {
 	return func(o *Options) error {
 		o.tlsKey = v
+		return nil
+	}
+}
+
+// Cores allow cors with domains name
+func Cores(domains []string) Option {
+	return func(o *Options) error {
+		o.corsDomain = domains
 		return nil
 	}
 }
@@ -143,12 +143,24 @@ func NewServer(options ...Option) *Server {
 	r.Use(middleware.Recoverer)
 	r.Use(titan.NewMiddleware("Http", logger))
 
-	//r.Use(middleware.Timeout(60 * time.Second))
+	corsDomain := extractCorsDomain(options...)
+
+	if len(corsDomain) != 0 {
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   corsDomain,
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			ExposedHeaders:   []string{"Link"},
+			AllowCredentials: false,
+			MaxAge:           300, // Maximum value not ignored by any of major browsers
+		}))
+	}
 
 	// set default handlers - health check and build info
 	defaultHandlers := &titan.DefaultHandlers{Subject: ""}
-	withDefaultOptions := append(append(getDefaultConfig(), options...), Routes(defaultHandlers.Routes))
+	defaultRouters := Routes(defaultHandlers.Routes)
 
+	withDefaultOptions := append(append(getDefaultConfig(), options...), defaultRouters)
 	// default options
 	opts := Options{
 		logger:        logger,
@@ -363,4 +375,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//normal http request
 	srv.handler.ServeHTTP(w, r)
+}
+
+func extractCorsDomain(options ...Option) []string {
+	optionsWithCORS := Options{
+		router: &titan.Mux{},
+	}
+	for _, o := range options {
+		o(&optionsWithCORS)
+	}
+	return optionsWithCORS.corsDomain
 }
