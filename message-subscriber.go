@@ -58,6 +58,15 @@ func (s *MessageSubscriber) unsubscribe() {
 	}
 }
 
+func (s *MessageSubscriber) drain() {
+	for _, sub := range s.subscriptions {
+		er := sub.Drain()
+		if er != nil {
+			s.logger.Error(fmt.Sprintf("Drain error: %+v\n ", er))
+		}
+	}
+}
+
 func createHandlerWithRecover(next MessageHandler) MessageHandler {
 	return func(msg *Message) (err error) {
 		defer func() {

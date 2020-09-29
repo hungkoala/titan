@@ -19,6 +19,14 @@ type Connection struct {
 	//add    string // example : https://192.168.1.10:8080/
 }
 
+func (c *Connection) Close() {
+
+}
+
+func (c *Connection) Drain() {
+
+}
+
 func NewConnection(discovery Discovery) titan.IConnection {
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // ignore expired SSL certificates

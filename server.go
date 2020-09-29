@@ -133,6 +133,7 @@ type Server struct {
 	messageSubscriber *MessageSubscriber
 	logger            logur.Logger
 	stop              chan interface{}
+	stopped           chan interface{}
 }
 
 func (srv *Server) start(started ...chan interface{}) error {
@@ -202,7 +203,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
 
-	err = conn.Conn.Flush()
+	err = conn.Flush()
 	if err != nil {
 		srv.logger.Error(fmt.Sprintf("Subscriptions flush error: %+v\n ", err))
 	}
@@ -212,23 +213,30 @@ func (srv *Server) start(started ...chan interface{}) error {
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
 	srv.stop = make(chan interface{}, 1)
+	srv.stopped = make(chan interface{}, 1)
 
 	cleanUp := func() {
 		srv.logger.Info("Server is closing")
-		er := subscription.Unsubscribe()
+		//er := subscription.Unsubscribe()
+		er := subscription.Drain()
 		if er != nil {
 			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
 		}
-		srv.messageSubscriber.unsubscribe()
+		//srv.messageSubscriber.unsubscribe()
+		srv.messageSubscriber.drain()
 
-		er = conn.Conn.Flush()
+		er = conn.Flush()
 		if er != nil {
 			srv.logger.Error(fmt.Sprintf("Flush error: %+v\n ", er))
 		}
 
-		conn.Conn.Close()
+		conn.Drain()
+		conn.Close()
+
+		srv.stopped <- "stopped"
 
 		close(srv.stop)
+		close(srv.stopped)
 		srv.stop = nil
 	}
 
@@ -243,7 +251,6 @@ func (srv *Server) start(started ...chan interface{}) error {
 	case <-done:
 		cleanUp()
 	}
-
 	srv.logger.Info("Server Stopped")
 
 	return nil
@@ -253,6 +260,7 @@ func (srv *Server) Stop() {
 	if srv != nil && srv.stop != nil {
 		srv.stop <- "stop"
 	}
+	<-srv.stopped
 }
 
 func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {

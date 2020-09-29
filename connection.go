@@ -12,10 +12,17 @@ type IConnection interface {
 	Publish(subject string, v interface{}) error
 	SendRequest(rq *Request, subject string) (*Response, error)
 	Flush() error
+	Close()
+	Drain()
 }
 
 type Connection struct {
 	Conn *nats.EncodedConn
+}
+
+//
+func newIConnection() IConnection {
+	return &Connection{}
 }
 
 // Connect will attempt to connect to the NATS system.
@@ -51,4 +58,12 @@ func (c *Connection) Publish(subject string, v interface{}) error {
 
 func (c *Connection) Flush() error {
 	return c.Conn.Flush()
+}
+
+func (c *Connection) Close() {
+	c.Conn.Close()
+}
+
+func (c *Connection) Drain() {
+	c.Conn.Drain()
 }
