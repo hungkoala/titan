@@ -38,7 +38,7 @@ type Options struct {
 	socketEnable  bool // accept socket connection
 	socketHandler map[string]socket.HandlerFunc
 	statics       map[string]string // Serve static files
-	coresDomain   []string          // allow cors by domains name
+	corsDomain    []string          // allow cors by domains name
 }
 
 func Logger(logger logur.Logger) Option {
@@ -65,7 +65,7 @@ func TlsKey(v string) Option {
 // Cores allow cors with domains name
 func Cores(domains []string) Option {
 	return func(o *Options) error {
-		o.coresDomain = domains
+		o.corsDomain = domains
 		return nil
 	}
 }
@@ -86,9 +86,6 @@ func Port(v string) Option {
 
 func Routes(r func(titan.Router)) Option {
 	return func(o *Options) error {
-		if o.router == nil {
-			return errors.New("router is nil")
-		}
 		r(o.router)
 		return nil
 	}
@@ -146,14 +143,11 @@ func NewServer(options ...Option) *Server {
 	r.Use(middleware.Recoverer)
 	r.Use(titan.NewMiddleware("Http", logger))
 
-	extractCORSOption := Options{}
-	for _, o := range options {
-		o(&extractCORSOption)
-	}
+	corsDomain := extractCorsDomain(options...)
 
-	if len(extractCORSOption.coresDomain) != 0 {
+	if len(corsDomain) != 0 {
 		r.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   extractCORSOption.coresDomain,
+			AllowedOrigins:   corsDomain,
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 			ExposedHeaders:   []string{"Link"},
@@ -377,4 +371,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//normal http request
 	srv.handler.ServeHTTP(w, r)
+}
+
+func extractCorsDomain(options ...Option) []string {
+	optionsWithCORS := Options{
+		router: &titan.Mux{},
+	}
+	for _, o := range options {
+		o(&optionsWithCORS)
+	}
+	return optionsWithCORS.corsDomain
 }
