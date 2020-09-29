@@ -148,7 +148,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		subject = Url2Subject(rq.URL)
 	}
 
-	logUrl := ExtractLoggablePartsFromUrl(rq.URL)
+	logUrl := rq.URL
 
 	logger.Debug("Nats client sending request to", map[string]interface{}{
 		"url": logUrl, "target subject": subject, "id": requestId, "method": rq.Method})

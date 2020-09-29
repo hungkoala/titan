@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -132,8 +133,9 @@ type Server struct {
 	handler           http.Handler // handler to invoke, http.DefaultServeMux if nil
 	messageSubscriber *MessageSubscriber
 	logger            logur.Logger
-	stop              chan interface{}
-	stopped           chan interface{}
+	stop              chan interface{} // command that instruct the server should be shutdown
+	stopped           chan interface{} // inform client that the server has stop
+	msgNum            int64            // number of processing messages
 }
 
 func (srv *Server) start(started ...chan interface{}) error {
@@ -193,7 +195,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler)
+	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler, &srv.msgNum)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
@@ -215,57 +217,80 @@ func (srv *Server) start(started ...chan interface{}) error {
 	srv.stop = make(chan interface{}, 1)
 	srv.stopped = make(chan interface{}, 1)
 
-	cleanUp := func() {
-		srv.logger.Info("Server is closing")
-		//er := subscription.Unsubscribe()
-		er := subscription.Drain()
-		if er != nil {
-			srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
-		}
-		//srv.messageSubscriber.unsubscribe()
-		srv.messageSubscriber.drain()
-
-		er = conn.Flush()
-		if er != nil {
-			srv.logger.Error(fmt.Sprintf("Flush error: %+v\n ", er))
-		}
-
-		conn.Drain()
-		conn.Close()
-
-		srv.stopped <- "stopped"
-
-		close(srv.stop)
-		close(srv.stopped)
-		srv.stop = nil
-	}
-
 	srv.logger.Info("Server started")
 	for i := range started {
 		started[i] <- true
 	}
 
+	// wait for stop command  or interrupt (ctr+c)
 	select {
 	case <-srv.stop:
-		cleanUp()
 	case <-done:
-		cleanUp()
 	}
-	srv.logger.Info("Server Stopped")
 
+	srv.logger.Info("Server is closing")
+	er := subscription.Drain()
+	if er != nil {
+		srv.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
+	}
+	srv.messageSubscriber.drain()
+
+	er = conn.Flush()
+	if er != nil {
+		srv.logger.Error(fmt.Sprintf("Flush error: %+v\n ", er))
+	}
+
+	close(srv.stop)
+	srv.stop = nil
+
+	//check end of waiting messages
+	endOfMsg := make(chan struct{})
+	go func() {
+		var numOfMsg int64
+		for _ = range time.Tick(100 * time.Millisecond) {
+			numOfMsg = atomic.LoadInt64(&srv.msgNum)
+			if numOfMsg <= 0 {
+				close(endOfMsg)
+				return
+			}
+		}
+	}()
+
+	// wait for all messages processed or timeout
+	select {
+	case <-endOfMsg:
+	case <-time.After(15 * time.Second):
+	}
+
+	conn.Drain()
+
+	srv.stopped <- "stopped"
+	close(srv.stopped)
+	srv.logger.Info("Server Stopped")
 	return nil
 }
 
 func (srv *Server) Stop() {
 	if srv != nil && srv.stop != nil {
-		srv.stop <- "stop"
+		srv.stop <- "stop command"
 	}
+	// wait for server stop
 	<-srv.stopped
 }
 
-func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
+func addAtomicInt(addr *int64, delta int64) {
+	go func(addr *int64) {
+		cu := atomic.AddInt64(addr, delta)
+		atomic.StoreInt64(addr, cu)
+	}(addr)
+}
+
+func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler, msgCount *int64) (*nats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, r []byte) {
 		go func(enc *nats.EncodedConn, msg []byte) {
+			addAtomicInt(msgCount, 1)
+			defer addAtomicInt(msgCount, -1)
+
 			var rq Request
 			err := json.Unmarshal(msg, &rq)
 			if err != nil {
