@@ -158,7 +158,7 @@ func NewServer(options ...Option) *Server {
 
 	// set default handlers - health check and build info
 	defaultHandlers := &titan.DefaultHandlers{Subject: ""}
-	defaultRouters := Routes(defaultHandlers.Routes)
+	defaultRouters := Routes(defaultHandlers.Register)
 
 	withDefaultOptions := append(append(getDefaultConfig(), options...), defaultRouters)
 	// default options
