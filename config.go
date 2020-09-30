@@ -113,6 +113,7 @@ func GetDefaultClient() *Client {
 	mux.Lock()
 	conn, err := NewConnection(
 		config.Servers,
+		nats.Name(fmt.Sprintf("%s_%s", hostname, "client")),
 		nats.Timeout(10*time.Second), // connection timeout
 		nats.MaxReconnects(-1),       // never give up
 		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {

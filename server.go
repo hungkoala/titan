@@ -81,7 +81,7 @@ func NewServer(subject string, options ...Option) *Server {
 	// set default handlers
 	// health check and build info
 	defaultHandlers := &DefaultHandlers{Subject: subject}
-	withDefaultOptions := append(options, Routes(defaultHandlers.Routes))
+	withDefaultOptions := append(options, Routes(defaultHandlers.Register), Subscribe(defaultHandlers.Subscribe))
 
 	// default options
 	opts := Options{
@@ -171,7 +171,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 	conn, err := NewConnection(
 		config.Servers,
 		nats.Timeout(10*time.Second), // connection timeout
-		nats.Name(hostname+srv.subject),
+		nats.Name(fmt.Sprintf("%s_%s", hostname, srv.subject)),
 		nats.MaxReconnects(-1), // never give up
 		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {
 			if e != nil {
@@ -279,10 +279,11 @@ func (srv *Server) Stop() {
 }
 
 func addAtomicInt(addr *int64, delta int64) {
+	add := addr
 	go func(addr *int64) {
 		cu := atomic.AddInt64(addr, delta)
 		atomic.StoreInt64(addr, cu)
-	}(addr)
+	}(add)
 }
 
 func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler, msgCount *int64) (*nats.Subscription, error) {
