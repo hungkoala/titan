@@ -14,6 +14,7 @@ const (
 type Health struct {
 	Status   string `json:"status"`
 	HostName string `json:"hostName"`
+	Subject  string `json:"subject"`
 }
 
 type AppInfo struct {
@@ -42,7 +43,7 @@ func (h *DefaultHandlers) Register(r Router) {
 
 func (h *DefaultHandlers) Health(ctx *Context) (*Health, error) {
 	name, _ := os.Hostname()
-	return &Health{Status: UP, HostName: name}, nil
+	return &Health{Status: UP, HostName: name, Subject: h.Subject}, nil
 }
 
 //see BuildInfoSource.java
@@ -57,6 +58,10 @@ func (h *DefaultHandlers) AppInfo(ctx *Context) (*AppInfo, error) {
 func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
 	s.Register(HEALTH_CHECK, "", func(p *Message) error {
 		name, _ := os.Hostname()
-		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, Health{Status: UP, HostName: name})
+		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, Health{
+			Status:   UP,
+			HostName: name,
+			Subject:  h.Subject,
+		})
 	})
 }
