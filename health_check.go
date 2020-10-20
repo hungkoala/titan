@@ -1,8 +1,7 @@
 package titan
 
 func HealthCheck(subject string) (*Health, error) {
-	var client *Client
-	client = GetDefaultClient()
+	client := GetDefaultClient()
 	req, _ := NewReqBuilder().
 		Get(SubjectToUrl(subject, "health")).
 		Subject(subject).

@@ -247,7 +247,8 @@ func (srv *Server) start(started ...chan interface{}) error {
 	endOfMsg := make(chan struct{})
 	go func() {
 		var numOfMsg int64
-		for _ = range time.Tick(100 * time.Millisecond) {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for range ticker.C {
 			numOfMsg = atomic.LoadInt64(&srv.msgNum)
 			if numOfMsg <= 0 {
 				close(endOfMsg)

@@ -13,8 +13,8 @@ import (
 )
 
 type Middleware struct {
-	name   string
-	logger logur.Logger
+	//name   string
+	//logger logur.Logger
 }
 
 func NewMiddleware(name string, logger logur.Logger) func(next http.Handler) http.Handler {

@@ -18,12 +18,12 @@ func AbsPathify(inPath string) string {
 	return ""
 }
 
-func extractTopicFromHttpUrl(path string) string {
-	if strings.HasPrefix(path, "/api/service/") || strings.HasPrefix(path, "/api/app/") {
-		return "/" + strings.Join(strings.Split(path, "/")[4:], "/")
-	}
-	return path
-}
+//func extractTopicFromHttpUrl(path string) string {
+//	if strings.HasPrefix(path, "/api/service/") || strings.HasPrefix(path, "/api/app/") {
+//		return "/" + strings.Join(strings.Split(path, "/")[4:], "/")
+//	}
+//	return path
+//}
 
 func extractSomePartsFromUrl(url string, numberOfPart int, separator string) string {
 	if url == "" {

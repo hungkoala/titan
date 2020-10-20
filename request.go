@@ -91,7 +91,7 @@ type RequestBuilder struct {
 	// raw url string for requests
 	rawURL string
 
-	subject string `json:"subject"`
+	subject string
 }
 
 // New returns a new default  Request.

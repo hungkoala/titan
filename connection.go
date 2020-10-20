@@ -65,5 +65,5 @@ func (c *Connection) Close() {
 }
 
 func (c *Connection) Drain() {
-	c.Conn.Drain()
+	_ = c.Conn.Drain()
 }

@@ -135,7 +135,7 @@ func GetDefaultClient() *Client {
 	)
 
 	if err != nil {
-		fmt.Println(fmt.Sprintf("nats client connection error %+v", err))
+		fmt.Printf("nats client connection error %+v\n", err)
 		os.Exit(1)
 	}
 

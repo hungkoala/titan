@@ -49,14 +49,14 @@ func (s *MessageSubscriber) subscribe(conn *nats.EncodedConn) error {
 	return nil
 }
 
-func (s *MessageSubscriber) unsubscribe() {
-	for _, sub := range s.subscriptions {
-		er := sub.Unsubscribe()
-		if er != nil {
-			s.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
-		}
-	}
-}
+//func (s *MessageSubscriber) unsubscribe() {
+//	for _, sub := range s.subscriptions {
+//		er := sub.Unsubscribe()
+//		if er != nil {
+//			s.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
+//		}
+//	}
+//}
 
 func (s *MessageSubscriber) drain() {
 	for _, sub := range s.subscriptions {
