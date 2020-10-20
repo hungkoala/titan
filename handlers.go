@@ -1,7 +1,6 @@
 package titan
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -132,7 +131,7 @@ func (h *DefaultHandlers) monitoringCheck() Monitoring {
 		monitoring.Pid = process.pid
 		monitoring.Cpu = process.cpu
 	} else {
-		logger.Warn(fmt.Sprintf("monitoring check error %+v", err))
+		//logger.Warn(fmt.Sprintf("monitoring check error %+v", err))
 	}
 	return monitoring
 }
