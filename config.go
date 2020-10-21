@@ -46,7 +46,7 @@ func init() {
 	if hostname == "" || err != nil {
 		hostname = "localhost"
 	}
-	hostname = hostname + "." + RandomString(6)
+	//hostname = hostname + "." + RandomString(6)
 
 	viper.AddConfigPath(".")
 	viper.SetConfigName("config")
