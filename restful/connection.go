@@ -19,6 +19,10 @@ type Connection struct {
 	//add    string // example : https://192.168.1.10:8080/
 }
 
+func (c *Connection) Subscribe(subject string, cb titan.Handler) (titan.ISubscription, error) {
+	panic("implement me")
+}
+
 func (c *Connection) Close() {
 
 }

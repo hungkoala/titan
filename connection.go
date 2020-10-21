@@ -14,10 +14,20 @@ type IConnection interface {
 	Flush() error
 	Close()
 	Drain()
+	Subscribe(subject string, cb Handler) (ISubscription, error)
+}
+
+type ISubscription interface {
+	Unsubscribe() error
+	Drain() error
 }
 
 type Connection struct {
 	Conn *nats.EncodedConn
+}
+
+func (c *Connection) Subscribe(subject string, cb Handler) (ISubscription, error) {
+	return c.Conn.QueueSubscribe(subject, "", cb)
 }
 
 //

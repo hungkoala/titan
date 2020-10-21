@@ -383,7 +383,7 @@ func extractCorsDomain(options ...Option) []string {
 		router: titan.NewRouter(r),
 	}
 	for _, o := range options {
-		o(&optionsWithCORS)
+		_ = o(&optionsWithCORS)
 	}
 	return optionsWithCORS.corsDomain
 }

@@ -94,7 +94,7 @@ func TestHttpsHealthEndPoint(t *testing.T) {
 
 	resp, err := client.Get(fmt.Sprintf("https://localhost:%s/health", port))
 	if err != nil {
-		fmt.Println(fmt.Sprintf("Error %+v", err))
+		fmt.Printf("Error %+v\n", err)
 	}
 
 	require.Nil(t, err)

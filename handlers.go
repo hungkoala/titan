@@ -68,7 +68,7 @@ func (h *DefaultHandlers) Register(r Router) {
 }
 
 func (h *DefaultHandlers) Health(ctx *Context) (*Health, error) {
-	health := h.healthCheck()
+	health := h.DoHealthCheck()
 	return &health, nil
 }
 
@@ -84,14 +84,14 @@ func (h *DefaultHandlers) AppInfo(ctx *Context) (*AppInfo, error) {
 func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
 	healthCheckSubject := fmt.Sprintf("%s_%s", HEALTH_CHECK, strings.ReplaceAll(hostname, " ", "_"))
 	s.Register(healthCheckSubject, "", func(p *Message) error {
-		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, h.healthCheck())
+		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, h.DoHealthCheck())
 	})
 	s.Register(MONITORING_CHECK, "", func(p *Message) error {
-		return GetDefaultClient().Publish(NewBackgroundContext(), MONITORING_CHECK_REPLY, h.monitoringCheck())
+		return GetDefaultClient().Publish(NewBackgroundContext(), MONITORING_CHECK_REPLY, DoMonitoringCheck(h.Subject))
 	})
 }
 
-func (h *DefaultHandlers) healthCheck() Health {
+func (h *DefaultHandlers) DoHealthCheck() Health {
 	name, _ := os.Hostname()
 	health := Health{
 		Status:   UP,
@@ -101,7 +101,7 @@ func (h *DefaultHandlers) healthCheck() Health {
 	}
 	return health
 }
-func (h *DefaultHandlers) monitoringCheck() Monitoring {
+func DoMonitoringCheck(subject string) Monitoring {
 	name, _ := os.Hostname()
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
@@ -111,7 +111,7 @@ func (h *DefaultHandlers) monitoringCheck() Monitoring {
 	monitoring := Monitoring{
 		Status:   UP,
 		HostName: name,
-		Subject:  h.Subject,
+		Subject:  subject,
 		// Misc memory stats
 		Alloc:      rtm.Alloc,
 		TotalAlloc: rtm.TotalAlloc,
@@ -132,8 +132,6 @@ func (h *DefaultHandlers) monitoringCheck() Monitoring {
 	if err == nil {
 		monitoring.Pid = process.pid
 		monitoring.Cpu = process.cpu
-	} else {
-		//logger.Warn(fmt.Sprintf("monitoring check error %+v", err))
 	}
 	return monitoring
 }

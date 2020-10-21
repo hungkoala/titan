@@ -232,3 +232,7 @@ func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error
 
 	return srv.conn.Publish(subject, p)
 }
+
+func (srv *Client) Subscribe(subject string, cb Handler) (ISubscription, error) {
+	return srv.conn.Subscribe(subject, cb)
+}
