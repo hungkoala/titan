@@ -1,6 +1,7 @@
 package titan
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -81,7 +82,8 @@ func (h *DefaultHandlers) AppInfo(ctx *Context) (*AppInfo, error) {
 }
 
 func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
-	s.Register(HEALTH_CHECK, "", func(p *Message) error {
+	healthCheckSubject := fmt.Sprintf("%s_%s", HEALTH_CHECK, strings.ReplaceAll(hostname, " ", "_"))
+	s.Register(healthCheckSubject, "", func(p *Message) error {
 		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, h.healthCheck())
 	})
 	s.Register(MONITORING_CHECK, "", func(p *Message) error {
