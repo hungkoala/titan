@@ -3,45 +3,8 @@ package titan
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 )
-
-const (
-	HEALTH_CHECK       = "health_check"
-	HEALTH_CHECK_REPLY = "health_check_reply"
-	UP                 = "UP"
-
-	MONITORING_CHECK       = "monitoring_check"
-	MONITORING_CHECK_REPLY = "monitoring_check_reply"
-)
-
-type Health struct {
-	Status   string `json:"status"`
-	HostName string `json:"hostName"`
-	Subject  string `json:"subject"`
-	Language string `json:"language"`
-}
-
-type Monitoring struct {
-	Status       string `json:"status"`
-	HostName     string `json:"hostName"`
-	Subject      string `json:"subject"`
-	Alloc        uint64 // currently allocated number of bytes on the heap
-	TotalAlloc   uint64 //cumulative max bytes allocated on the heap (will not decrease),
-	Sys          uint64 //total memory obtained from the OS
-	Mallocs      uint64 //number of allocations
-	Frees        uint64 //number  deallocations
-	LiveObjects  uint64 //live objects (mallocs - frees)
-	PauseTotalNs uint64 //total GC pauses since the app has started,
-	NumGC        uint32 // number of completed GC cycles
-
-	NumGoroutine int
-
-	Pid      int     // process id
-	Cpu      float64 // cpu usage
-	Language string  `json:"language"`
-}
 
 type AppInfo struct {
 	Build BuildInfo `json:"build"`
@@ -89,49 +52,4 @@ func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
 	s.Register(MONITORING_CHECK, "", func(p *Message) error {
 		return GetDefaultClient().Publish(NewBackgroundContext(), MONITORING_CHECK_REPLY, DoMonitoringCheck(h.Subject))
 	})
-}
-
-func (h *DefaultHandlers) DoHealthCheck() Health {
-	name, _ := os.Hostname()
-	health := Health{
-		Status:   UP,
-		HostName: name,
-		Subject:  h.Subject,
-		Language: "Go",
-	}
-	return health
-}
-func DoMonitoringCheck(subject string) Monitoring {
-	name, _ := os.Hostname()
-	var rtm runtime.MemStats
-	runtime.ReadMemStats(&rtm)
-
-	process, err := GetCpuUsage()
-
-	monitoring := Monitoring{
-		Status:   UP,
-		HostName: name,
-		Subject:  subject,
-		// Misc memory stats
-		Alloc:      rtm.Alloc,
-		TotalAlloc: rtm.TotalAlloc,
-		Sys:        rtm.Sys,
-		Mallocs:    rtm.Mallocs,
-		Frees:      rtm.Frees,
-
-		// Live objects = Mallocs - Frees
-		LiveObjects: rtm.Mallocs - rtm.Frees,
-
-		// GC Stats
-		PauseTotalNs: rtm.PauseTotalNs,
-		NumGC:        rtm.NumGC,
-		NumGoroutine: runtime.NumGoroutine(),
-		Language:     "Go",
-	}
-
-	if err == nil {
-		monitoring.Pid = process.pid
-		monitoring.Cpu = process.cpu
-	}
-	return monitoring
 }

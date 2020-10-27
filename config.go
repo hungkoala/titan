@@ -33,11 +33,16 @@ var loggerOnce sync.Once
 var logger logur.Logger
 
 const (
-	NatsServers     = "Nats.Servers"
-	NatsReadTimeout = "Nats.ReadTimeout"
-	LoggingFormat   = "Logging.Format"
-	LoggingLevel    = "Logging.Level"
-	LoggingNoColor  = "Logging.NoColor"
+	NatsServers             = "Nats.Servers"
+	NatsReadTimeout         = "Nats.ReadTimeout"
+	NatsPingInterval        = "Nats.PingInterval"
+	NatsMaxPingsOutstanding = "Nats.MaxPingsOutstanding"
+	NatsPendingLimitByte    = "Nats.PendingLimitByte"
+	NatsPendingLimitMsg     = "Nats.PendingLimitMsg"
+
+	LoggingFormat  = "Logging.Format"
+	LoggingLevel   = "Logging.Level"
+	LoggingNoColor = "Logging.NoColor"
 )
 
 func init() {
@@ -65,11 +70,21 @@ func init() {
 	// nats
 	viper.SetDefault(NatsServers, "nats://127.0.0.1:4222, nats://localhost:4222")
 	viper.SetDefault(NatsReadTimeout, 99999)
+	// see https://docs.nats.io/developing-with-nats/connecting/pingpong
+	viper.SetDefault(NatsPingInterval, 20)
+	viper.SetDefault(NatsMaxPingsOutstanding, 10)
+	viper.SetDefault(NatsPendingLimitByte, -1)
+	viper.SetDefault(NatsPendingLimitMsg, -1)
+
 }
 
 type NatsConfig struct {
-	Servers     string
-	ReadTimeout int
+	Servers             string
+	ReadTimeout         int
+	PingInterval        int
+	MaxPingsOutstanding int
+	PendingLimitMsg     int
+	PendingLimitByte    int
 }
 
 func (c NatsConfig) GetReadTimeoutDuration() time.Duration {
@@ -79,8 +94,12 @@ func (c NatsConfig) GetReadTimeoutDuration() time.Duration {
 func GetNatsConfig() *NatsConfig {
 	natConfigOnce.Do(func() { // <-- atomic, does not allow repeating
 		natConfig = &NatsConfig{
-			Servers:     viper.GetString(NatsServers),
-			ReadTimeout: viper.GetInt(NatsReadTimeout),
+			Servers:             viper.GetString(NatsServers),
+			ReadTimeout:         viper.GetInt(NatsReadTimeout),
+			PingInterval:        viper.GetInt(NatsPingInterval),
+			MaxPingsOutstanding: viper.GetInt(NatsMaxPingsOutstanding),
+			PendingLimitMsg:     viper.GetInt(NatsPendingLimitMsg),
+			PendingLimitByte:    viper.GetInt(NatsPendingLimitByte),
 		}
 	})
 	return natConfig
@@ -132,6 +151,8 @@ func GetDefaultClient() *Client {
 		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
 			log.Debug("Nats client  Discovered")
 		}),
+		nats.PingInterval(time.Duration(config.PingInterval)*time.Second),
+		nats.MaxPingsOutstanding(config.MaxPingsOutstanding),
 	)
 
 	if err != nil {

@@ -189,6 +189,8 @@ func (srv *Server) start(started ...chan interface{}) error {
 		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
 			srv.logger.Debug("Nats server  Discovered")
 		}),
+		nats.PingInterval(time.Duration(config.PingInterval)*time.Second),
+		nats.MaxPingsOutstanding(config.MaxPingsOutstanding),
 	)
 
 	if err != nil {
@@ -199,6 +201,8 @@ func (srv *Server) start(started ...chan interface{}) error {
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve error ")
 	}
+
+	subscription.SetPendingLimits(config.PendingLimitMsg, config.PendingLimitByte)
 
 	err = srv.messageSubscriber.subscribe(conn.Conn)
 	if err != nil {
@@ -214,7 +218,10 @@ func (srv *Server) start(started ...chan interface{}) error {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
+	// stop command from apps/users
 	srv.stop = make(chan interface{}, 1)
+
+	// notified unit test/other apps that the server has been stopped
 	srv.stopped = make(chan interface{}, 1)
 
 	srv.logger.Info("Server started")
