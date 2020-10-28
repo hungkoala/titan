@@ -20,6 +20,7 @@ type IConnection interface {
 type ISubscription interface {
 	Unsubscribe() error
 	Drain() error
+	SetPendingLimits(msgLimit, bytesLimit int) error
 }
 
 type Connection struct {

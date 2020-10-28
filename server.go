@@ -168,30 +168,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 	timeoutHandler := http.TimeoutHandler(srv.handler, config.GetReadTimeoutDuration(), `{"message": "nats handler timeout"}`)
 
 	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers})
-	conn, err := NewConnection(
-		config.Servers,
-		nats.Timeout(10*time.Second), // connection timeout
-		nats.Name(fmt.Sprintf("%s_%s", hostname, srv.subject)),
-		nats.MaxReconnects(-1), // never give up
-		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {
-			if e != nil {
-				srv.logger.Error(fmt.Sprintf("Nats server error %+v", e))
-			}
-		}),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, e error) {
-			if e != nil {
-				srv.logger.Error(fmt.Sprintf("Nats server disconect error %+v", e))
-			}
-		}),
-		nats.ReconnectHandler(func(_ *nats.Conn) {
-			srv.logger.Debug("Nats server  Reconnect")
-		}),
-		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
-			srv.logger.Debug("Nats server  Discovered")
-		}),
-		nats.PingInterval(time.Duration(config.PingInterval)*time.Second),
-		nats.MaxPingsOutstanding(config.MaxPingsOutstanding),
-	)
+	conn, err := GetDefaultServer(config, srv.logger)
 
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")
@@ -199,19 +176,22 @@ func (srv *Server) start(started ...chan interface{}) error {
 
 	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler, &srv.msgNum)
 	if err != nil {
-		return errors.WithMessage(err, "Nats serve error ")
+		return errors.WithMessage(err, "Nats serve subscribe error ")
 	}
 
-	subscription.SetPendingLimits(config.PendingLimitMsg, config.PendingLimitByte)
+	err = subscription.SetPendingLimits(config.PendingLimitMsg, config.PendingLimitByte)
+	if err != nil {
+		return errors.WithMessage(err, "Nats serve  set pending limits error ")
+	}
 
 	err = srv.messageSubscriber.subscribe(conn.Conn)
 	if err != nil {
-		return errors.WithMessage(err, "Nats serve error ")
+		return errors.WithMessage(err, "Nats serve messageSubscriber error ")
 	}
 
 	err = conn.Flush()
 	if err != nil {
-		srv.logger.Error(fmt.Sprintf("Subscriptions flush error: %+v\n ", err))
+		srv.logger.Error(fmt.Sprintf("Nats serve flush subscription  error: %+v\n ", err))
 	}
 
 	// Handle SIGINT and SIGTERM.

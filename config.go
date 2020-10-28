@@ -33,12 +33,16 @@ var loggerOnce sync.Once
 var logger logur.Logger
 
 const (
-	NatsServers             = "Nats.Servers"
-	NatsReadTimeout         = "Nats.ReadTimeout"
+	NatsServers     = "Nats.Servers"
+	NatsReadTimeout = "Nats.ReadTimeout"
+
+	// see https://docs.nats.io/developing-with-nats/connecting/pingpong
 	NatsPingInterval        = "Nats.PingInterval"
 	NatsMaxPingsOutstanding = "Nats.MaxPingsOutstanding"
-	NatsPendingLimitByte    = "Nats.PendingLimitByte"
-	NatsPendingLimitMsg     = "Nats.PendingLimitMsg"
+
+	//see https://docs.nats.io/developing-with-nats/events/slow
+	NatsPendingLimitByte = "Nats.PendingLimitByte"
+	NatsPendingLimitMsg  = "Nats.PendingLimitMsg"
 
 	LoggingFormat  = "Logging.Format"
 	LoggingLevel   = "Logging.Level"
@@ -135,9 +139,10 @@ func GetDefaultClient() *Client {
 		nats.Name(fmt.Sprintf("%s_%s", hostname, "client")),
 		nats.Timeout(10*time.Second), // connection timeout
 		nats.MaxReconnects(-1),       // never give up
-		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, e error) {
+		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, e error) {
 			if e != nil {
-				log.Error(fmt.Sprintf("Nats client error %+v", e))
+				pendingMsg, _, _ := s.Pending()
+				log.Error(fmt.Sprintf("Nats client subject=%s, queue name=%s, pending messages=%d, error %+v", s.Subject, s.Queue, pendingMsg, e))
 			}
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, e error) {
@@ -146,10 +151,10 @@ func GetDefaultClient() *Client {
 			}
 		}),
 		nats.ReconnectHandler(func(_ *nats.Conn) {
-			log.Debug("Nats client  Reconnect")
+			log.Debug("Nats client Reconnect")
 		}),
 		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
-			log.Debug("Nats client  Discovered")
+			log.Debug("Nats client Discovered")
 		}),
 		nats.PingInterval(time.Duration(config.PingInterval)*time.Second),
 		nats.MaxPingsOutstanding(config.MaxPingsOutstanding),
@@ -172,4 +177,36 @@ func GetDefaultClient() *Client {
 	mux.Unlock()
 
 	return defaultClient
+}
+
+func GetDefaultServer(config *NatsConfig, logger logur.Logger) (*Connection, error) {
+	return NewConnection(
+		config.Servers,
+		nats.Timeout(10*time.Second), // connection timeout
+		nats.Name(fmt.Sprintf("%s_%s", hostname, config.Servers)),
+		nats.MaxReconnects(-1), // never give up
+		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, e error) {
+			if e != nil {
+				if s != nil {
+					pendingMsg, _, _ := s.Pending()
+					logger.Error(fmt.Sprintf("Nats server subject=%s, queue name=%s, pending messages=%d, error %+v", s.Subject, s.Queue, pendingMsg, e))
+				} else {
+					logger.Error(fmt.Sprintf("Nats server error %+v", e))
+				}
+			}
+		}),
+		nats.DisconnectErrHandler(func(s *nats.Conn, e error) {
+			if e != nil {
+				logger.Error(fmt.Sprintf("Nats server disconect error %+v", e))
+			}
+		}),
+		nats.ReconnectHandler(func(_ *nats.Conn) {
+			logger.Debug("Nats server  Reconnect")
+		}),
+		nats.DiscoveredServersHandler(func(_ *nats.Conn) {
+			logger.Debug("Nats server  Discovered")
+		}),
+		nats.PingInterval(time.Duration(config.PingInterval)*time.Second),
+		nats.MaxPingsOutstanding(config.MaxPingsOutstanding),
+	)
 }

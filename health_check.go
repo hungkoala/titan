@@ -17,14 +17,14 @@ type Health struct {
 	Language string `json:"language"`
 }
 
-func HealthCheck(subject string) (*Health, error) {
+func HealthCheck(ctx *Context, subject string) (*Health, error) {
 	client := GetDefaultClient()
 	req, _ := NewReqBuilder().
 		Get(SubjectToUrl(subject, "health")).
 		Subject(subject).
 		Build()
 	var resp = &Health{}
-	err := client.SendAndReceiveJson(NewBackgroundContext(), req, &resp)
+	err := client.SendAndReceiveJson(ctx, req, &resp)
 	return resp, err
 }
 
