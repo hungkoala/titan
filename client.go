@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"gitlab.com/silenteer-oss/titan/tracing"
 )
 
 type Client struct {
@@ -27,6 +29,7 @@ func (srv *Client) request(rq *Request, subject string) (*Response, error) {
 	defer func(c IConnection) {
 		_ = c.Flush()
 	}(srv.conn)
+
 	return srv.conn.SendRequest(rq, subject)
 }
 
@@ -136,6 +139,14 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 	}
 	rq.Headers.Set(XRequestId, requestId)
 
+	uberTraceID := ctx.UberTraceID()
+
+	rq.Headers.Set(UberTraceID, uberTraceID)
+	reqSpan := tracing.SpanContext(&rq.Headers, rq.URL)
+	if reqSpan != nil {
+		defer reqSpan.Finish()
+	}
+
 	//todo: copy authentication here
 	userInfoJson := ctx.UserInfoJson()
 	if userInfoJson != "" {
@@ -167,6 +178,9 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 				"target subject": subject,
 				"elapsed_ms":     float64(time.Since(t).Nanoseconds()) / 1000000.0},
 			)
+			if reqSpan != nil {
+				ext.LogError(reqSpan, err)
+			}
 		} else {
 			status = fmt.Sprintf("%d", rp.StatusCode)
 		}

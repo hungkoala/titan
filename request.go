@@ -21,6 +21,7 @@ const (
 	XRequest        = "X-REQUEST"
 	XUserInfo       = "X-Silentium-User" // how to remove this value
 	XGlobalCache    = "X-Global-Cache"   // how to remove this value
+	UberTraceID     = "Uber-Trace-Id"
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
 )

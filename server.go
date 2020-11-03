@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
@@ -28,6 +29,14 @@ type Options struct {
 	config            *NatsConfig
 	router            Router
 	messageSubscriber *MessageSubscriber
+	tracer            opentracing.Tracer
+}
+
+func Tracer(tracer opentracing.Tracer) Option {
+	return func(o *Options) error {
+		o.tracer = tracer
+		return nil
+	}
 }
 
 func Logger(logger logur.Logger) Option {
@@ -76,7 +85,10 @@ func NewServer(subject string, options ...Option) *Server {
 	logger.Debug("Log Config :", map[string]interface{}{"format": logConfig.Format, "level": logConfig.Level, "NoColor": logConfig.NoColor})
 
 	r := chi.NewRouter()
-	r.Use(NewMiddleware("NATS", logger))
+	r.Use(
+		NewMiddleware("NATS", logger),
+		TraceMiddleware(),
+	)
 
 	// set default handlers
 	// health check and build info
@@ -109,6 +121,7 @@ func NewServer(subject string, options ...Option) *Server {
 		handler:           opts.router,
 		messageSubscriber: opts.messageSubscriber,
 		logger:            log.WithFields(opts.logger, map[string]interface{}{"queue": opts.queue}),
+		tracer:            opts.tracer,
 	}
 }
 
@@ -136,6 +149,7 @@ type Server struct {
 	stop              chan interface{} // command that instruct the server should be shutdown
 	stopped           chan interface{} // inform client that the server has stop
 	msgNum            int64            // number of processing messages
+	tracer            opentracing.Tracer
 }
 
 func (srv *Server) start(started ...chan interface{}) error {
