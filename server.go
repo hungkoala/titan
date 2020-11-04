@@ -16,6 +16,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"gitlab.com/silenteer-oss/titan/log"
+	"gitlab.com/silenteer-oss/titan/tracing"
 	"logur.dev/logur"
 )
 
@@ -30,13 +31,6 @@ type Options struct {
 	router            Router
 	messageSubscriber *MessageSubscriber
 	tracer            opentracing.Tracer
-}
-
-func Tracer(tracer opentracing.Tracer) Option {
-	return func(o *Options) error {
-		o.tracer = tracer
-		return nil
-	}
 }
 
 func Logger(logger logur.Logger) Option {
@@ -75,6 +69,7 @@ func Subscribe(r func(*MessageSubscriber)) Option {
 }
 
 func NewServer(subject string, options ...Option) *Server {
+	tracing.InitTracing(subject)
 
 	// default logger
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})

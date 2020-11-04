@@ -20,6 +20,12 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
+const (
+	XRequestId   = "X-REQUEST-ID"
+	UberTraceID  = "Uber-Trace-Id"
+	SERVICE_NAME = "SERVICE_NAME"
+)
+
 var one sync.Once
 var tracer opentracing.Tracer
 
@@ -61,17 +67,17 @@ func initTracing(serviceName string) opentracing.Tracer {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func(close io.Closer) {
 		<-c
-		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		log.Println("\r- Ctrl+C pressed in Terminal")
 		close.Close()
 	}(closer)
 
 	return tracer
 }
+
 func GetTracer() opentracing.Tracer {
 	if tracer == nil {
 		one.Do(func() {
-			name := viper.GetString("SERVICE_NAME")
-			tracer = initTracing(name)
+			tracer = initTracing(viper.GetString(SERVICE_NAME))
 		})
 	}
 	return tracer
@@ -85,7 +91,7 @@ func SpanContext(
 		return nil
 	}
 	m := make(opentracing.TextMapCarrier, 0)
-	m.Set("Uber-Trace-Id", carier.Get("Uber-Trace-Id"))
+	m.Set(UberTraceID, carier.Get(UberTraceID))
 	spanCtx, err := tracer.Extract(opentracing.HTTPHeaders, m)
 	var reqSpan opentracing.Span
 	if err == nil {
@@ -98,7 +104,7 @@ func SpanContext(
 		reqSpan = tracer.StartSpan(url, ext.SpanKindRPCClient)
 	}
 
-	ext.MessageBusDestination.Set(reqSpan, url)
+	reqSpan.SetTag(XRequestId, carier.Get(XRequestId))
 	if err := tracer.Inject(reqSpan.Context(), opentracing.HTTPHeaders, carier); err != nil {
 		log.Printf("%v for Inject.", err)
 	}
