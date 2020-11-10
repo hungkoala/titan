@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/silenteer-oss/titan/log"
-	"gitlab.com/silenteer-oss/titan/tracing"
 
 	"logur.dev/logur"
 )
@@ -16,22 +15,6 @@ import (
 type Middleware struct {
 	//name   string
 	//logger logur.Logger
-}
-
-func TraceMiddleware() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			uberTraceID := r.Header.Get(UberTraceID)
-
-			ctx := context.WithValue(r.Context(), UberTraceID, uberTraceID)
-			if reqSpan := tracing.SpanContext(&r.Header, r.URL.RawPath); reqSpan != nil {
-				defer reqSpan.Finish()
-			}
-
-			next.ServeHTTP(w, r.WithContext(ctx))
-		}
-		return http.HandlerFunc(fn)
-	}
 }
 
 func NewMiddleware(name string, logger logur.Logger) func(next http.Handler) http.Handler {

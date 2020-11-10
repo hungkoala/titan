@@ -289,7 +289,7 @@ func HttpRequestToNatsRequest(r *http.Request) (*Request, error) {
 
 	return &Request{
 		Body:    body,
-		URL:     r.RequestURI,
+		URL:     r.URL.Path,
 		Method:  r.Method,
 		Headers: r.Header,
 	}, nil

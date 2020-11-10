@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -94,6 +95,11 @@ func SpanContext(
 	m.Set(UberTraceID, carier.Get(UberTraceID))
 	spanCtx, err := tracer.Extract(opentracing.HTTPHeaders, m)
 	var reqSpan opentracing.Span
+
+	urls := strings.Split(url, ".")
+	if len(urls) > 0 {
+		url = urls[len(urls)-1]
+	}
 	if err == nil {
 		reqSpan = tracer.StartSpan(
 			url,

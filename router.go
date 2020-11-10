@@ -9,6 +9,9 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10/non-standard/validators"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
+	"gitlab.com/silenteer-oss/titan/tracing"
 
 	"github.com/go-playground/validator/v10"
 
@@ -164,12 +167,25 @@ func handleJsonResponse(ctx *Context, r *Request, cb Handler) *Response {
 
 	builder := NewResBuilder()
 
+	uberTraceID := r.Headers.Get(UberTraceID)
+	ctx = ctx.WithValue(UberTraceID, uberTraceID)
+	reqSpan := tracing.SpanContext(&r.Headers, r.URL)
+	if reqSpan != nil {
+		defer reqSpan.Finish()
+	}
+
 	//1. call function handler
 	ret, err := callJsonHandler(ctx, r.Body, cb)
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Json handler error: %+v\n ", err))
 		err = UnwrapErr(err)
+		msg := fmt.Sprintf("Json handler error: %+v\n ", err)
+		logger.Error(msg)
+		if reqSpan != nil {
+			ext.LogError(reqSpan,
+				err,
+				log.Object("err", fmt.Errorf("%+v", err)))
+		}
 		switch comEx := err.(type) {
 		case *CommonException: // see old code CommonExceptionHandler.java
 			logger.Error(fmt.Sprintf("Common error: %s ", comEx.ServerError))

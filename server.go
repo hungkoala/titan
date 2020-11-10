@@ -82,7 +82,6 @@ func NewServer(subject string, options ...Option) *Server {
 	r := chi.NewRouter()
 	r.Use(
 		NewMiddleware("NATS", logger),
-		TraceMiddleware(),
 	)
 
 	// set default handlers

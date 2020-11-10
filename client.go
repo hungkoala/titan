@@ -238,6 +238,14 @@ func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error
 	p.Headers.Set(XRequestId, ctx.RequestId())
 	p.Headers.Set(XUserInfo, ctx.UserInfoJson())
 
+	p.Headers.Set(UberTraceID, ctx.UberTraceID())
+	uberTraceID := ctx.UberTraceID()
+	p.Headers.Set(UberTraceID, uberTraceID)
+	reqSpan := tracing.SpanContext(&p.Headers, subject)
+	if reqSpan != nil {
+		defer reqSpan.Finish()
+	}
+
 	b, err := json.Marshal(body)
 	if err != nil {
 		return err

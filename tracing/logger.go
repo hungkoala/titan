@@ -11,7 +11,7 @@ type jaegerLogger struct {
 
 func newLogger() *jaegerLogger {
 	return &jaegerLogger{
-		loggerOut: log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+		loggerOut: log.New(os.Stdout, "", log.LstdFlags),
 	}
 }
 
