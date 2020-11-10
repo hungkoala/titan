@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	XRequestId   = "X-REQUEST-ID"
+	XRequestId   = "X-Request-Id"
 	UberTraceID  = "Uber-Trace-Id"
 	SERVICE_NAME = "SERVICE_NAME"
 )
@@ -91,7 +91,7 @@ func SpanContext(
 	if tracer == nil {
 		return nil
 	}
-	m := make(opentracing.TextMapCarrier, 0)
+	m := make(opentracing.TextMapCarrier)
 	m.Set(UberTraceID, carier.Get(UberTraceID))
 	spanCtx, err := tracer.Extract(opentracing.HTTPHeaders, m)
 	var reqSpan opentracing.Span

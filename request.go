@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	XRequestId      = "X-REQUEST-ID"
+	XRequestId      = "X-Request-Id"
 	XLoggerId       = "X-LOGGER-ID"
 	XPathParams     = "X-PATH-PARAMS"
 	XQueryParams    = "X-QUERY-PARAMS"
@@ -24,6 +24,7 @@ const (
 	UberTraceID     = "Uber-Trace-Id"
 	contentType     = "Content-Type"
 	jsonContentType = "application/json"
+	XRequestTime    = "X-Request-Time"
 )
 
 type RequestParams map[string][]string

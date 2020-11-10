@@ -20,5 +20,5 @@ func (t *jaegerLogger) Error(msg string) {
 }
 
 func (t *jaegerLogger) Infof(msg string, args ...interface{}) {
-	t.loggerOut.Println(msg, args)
+	//t.loggerOut.Println(msg, args)
 }

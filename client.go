@@ -138,9 +138,9 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		requestId = RandomString(6)
 	}
 	rq.Headers.Set(XRequestId, requestId)
+	rq.Headers.Set(XRequestTime, strconv.FormatInt(time.Now().UnixNano(), 10))
 
 	uberTraceID := ctx.UberTraceID()
-
 	rq.Headers.Set(UberTraceID, uberTraceID)
 	reqSpan := tracing.SpanContext(&rq.Headers, rq.URL)
 	if reqSpan != nil {
