@@ -175,7 +175,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 	timeoutHandler := http.TimeoutHandler(srv.handler, config.GetReadTimeoutDuration(), `{"message": "nats handler timeout"}`)
 
 	srv.logger.Info("Connecting to NATS Server at: ", map[string]interface{}{"add": config.Servers})
-	conn, err := GetDefaultServer(config, srv.logger)
+	conn, err := GetDefaultServer(config, srv.logger, srv.subject)
 
 	if err != nil {
 		return errors.WithMessage(err, "Nats connection error ")

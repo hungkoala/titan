@@ -179,11 +179,11 @@ func GetDefaultClient() *Client {
 	return defaultClient
 }
 
-func GetDefaultServer(config *NatsConfig, logger logur.Logger) (*Connection, error) {
+func GetDefaultServer(config *NatsConfig, logger logur.Logger, subject string) (*Connection, error) {
 	return NewConnection(
 		config.Servers,
 		nats.Timeout(10*time.Second), // connection timeout
-		nats.Name(fmt.Sprintf("%s_%s", hostname, config.Servers)),
+		nats.Name(fmt.Sprintf("%s_%s", subject, hostname)),
 		nats.MaxReconnects(-1), // never give up
 		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, e error) {
 			if e != nil {
