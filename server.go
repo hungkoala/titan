@@ -6,15 +6,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"gitlab.com/silenteer-oss/titan/log"
+	"gitlab.com/silenteer-oss/titan/tracing"
 	"logur.dev/logur"
 )
 
@@ -28,6 +29,7 @@ type Options struct {
 	config            *NatsConfig
 	router            Router
 	messageSubscriber *MessageSubscriber
+	tracer            opentracing.Tracer
 }
 
 func Logger(logger logur.Logger) Option {
@@ -66,6 +68,7 @@ func Subscribe(r func(*MessageSubscriber)) Option {
 }
 
 func NewServer(subject string, options ...Option) *Server {
+	tracing.InitTracing(subject)
 
 	// default logger
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
@@ -76,7 +79,9 @@ func NewServer(subject string, options ...Option) *Server {
 	logger.Debug("Log Config :", map[string]interface{}{"format": logConfig.Format, "level": logConfig.Level, "NoColor": logConfig.NoColor})
 
 	r := chi.NewRouter()
-	r.Use(NewMiddleware("NATS", logger))
+	r.Use(
+		NewMiddleware("NATS", logger),
+	)
 
 	// set default handlers
 	// health check and build info
@@ -109,6 +114,7 @@ func NewServer(subject string, options ...Option) *Server {
 		handler:           opts.router,
 		messageSubscriber: opts.messageSubscriber,
 		logger:            log.WithFields(opts.logger, map[string]interface{}{"queue": opts.queue}),
+		tracer:            opts.tracer,
 	}
 }
 
@@ -135,7 +141,8 @@ type Server struct {
 	logger            logur.Logger
 	stop              chan interface{} // command that instruct the server should be shutdown
 	stopped           chan interface{} // inform client that the server has stop
-	msgNum            int64            // number of processing messages
+	//msgNum            int64            // number of processing messages
+	tracer opentracing.Tracer
 }
 
 func (srv *Server) start(started ...chan interface{}) error {
@@ -174,7 +181,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 		return errors.WithMessage(err, "Nats connection error ")
 	}
 
-	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler, &srv.msgNum)
+	subscription, err := subscribe(conn.Conn, srv.logger, srv.subject, srv.queue, timeoutHandler)
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve subscribe error ")
 	}
@@ -236,7 +243,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 		var numOfMsg int64
 		ticker := time.NewTicker(100 * time.Millisecond)
 		for range ticker.C {
-			numOfMsg = atomic.LoadInt64(&srv.msgNum)
+			numOfMsg = MsgCountLoad()
 			if numOfMsg <= 0 {
 				close(endOfMsg)
 				return
@@ -266,20 +273,9 @@ func (srv *Server) Stop() {
 	<-srv.stopped
 }
 
-func addAtomicInt(addr *int64, delta int64) {
-	add := addr
-	go func(addr *int64) {
-		cu := atomic.AddInt64(addr, delta)
-		atomic.StoreInt64(addr, cu)
-	}(add)
-}
-
-func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler, msgCount *int64) (*nats.Subscription, error) {
+func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, r []byte) {
 		go func(enc *nats.EncodedConn, msg []byte) {
-			addAtomicInt(msgCount, 1)
-			defer addAtomicInt(msgCount, -1)
-
 			var rq Request
 			err := json.Unmarshal(msg, &rq)
 			if err != nil {
@@ -298,6 +294,9 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method, "subject": subject})
 
 			defer handlePanic(conn, logWithId, rpSubject)
+
+			BeginRequest(logWithId, rq.Headers)
+			defer EndRequest(logWithId, rq.Headers)
 
 			rp := &Response{
 				Headers: http.Header{},

@@ -49,7 +49,7 @@ func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
 	s.Register(healthCheckSubject, "", func(p *Message) error {
 		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, h.DoHealthCheck())
 	})
-	s.Register(MONITORING_CHECK, "", func(p *Message) error {
-		return GetDefaultClient().Publish(NewBackgroundContext(), MONITORING_CHECK_REPLY, DoMonitoringCheck(h.Subject))
+	s.Register(MONITORING_CHECK, "", func(m *Message) error {
+		return GetDefaultClient().Publish(NewBackgroundContext(), MONITORING_CHECK_REPLY, DoMonitoringCheck(h.Subject, m))
 	})
 }
