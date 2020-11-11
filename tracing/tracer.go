@@ -17,14 +17,14 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uber/jaeger-lib/metrics"
 
-	jaeger "github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
 const (
-	XRequestId   = "X-Request-Id"
-	UberTraceID  = "Uber-Trace-Id"
-	SERVICE_NAME = "SERVICE_NAME"
+	XRequestId          = "X-Request-Id"
+	UberTraceID         = "Uber-Trace-Id"
+	SERVICE_NAME        = "SERVICE_NAME"
+	JAEGER_SERVICE_NAME = "JAEGER_SERVICE_NAME"
 )
 
 var one sync.Once
@@ -41,15 +41,13 @@ func InitTracing(serviceName string) {
 }
 
 func initTracing(serviceName string) opentracing.Tracer {
-	cfg := jaegercfg.Configuration{
-		ServiceName: serviceName,
-		Sampler: &jaegercfg.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &jaegercfg.ReporterConfig{
-			LogSpans: true,
-		},
+	os.Setenv(JAEGER_SERVICE_NAME, serviceName)
+
+	cfg, err := jaegercfg.FromEnv()
+	if err != nil {
+		// parsing errors might happen here, such as when we get a string where we expect a number
+		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
+		return nil
 	}
 
 	jLogger := newLogger()
