@@ -240,7 +240,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 	//check end of waiting messages
 	endOfMsg := make(chan struct{})
 	go func() {
-		var numOfMsg int64
+		var numOfMsg uint64
 		ticker := time.NewTicker(100 * time.Millisecond)
 		for range ticker.C {
 			numOfMsg = MsgCountLoad()
@@ -295,12 +295,12 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 
 			defer handlePanic(conn, logWithId, rpSubject)
 
-			BeginRequest(logWithId, rq.Headers)
-			defer EndRequest(logWithId, rq.Headers)
-
 			rp := &Response{
 				Headers: http.Header{},
 			}
+
+			BeginRequest(logWithId, &rq)
+			defer EndRequest(logWithId, rp)
 
 			httpReq, err := NatsRequestToHttpRequest(&rq)
 			if err != nil {

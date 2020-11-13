@@ -27,6 +27,11 @@ const (
 	XRequestTime    = "X-Request-Time"
 )
 
+type RequestInterface interface {
+	GetUrl() string
+	GetHeaders() http.Header
+}
+
 type RequestParams map[string][]string
 
 // Request is a simple struct
@@ -38,6 +43,13 @@ type Request struct {
 
 	// in case of using NATS subject instead of Restful url prefix
 	Subject string `json:"subject"`
+}
+
+func (r *Request) GetUrl() string {
+	return r.URL
+}
+func (r *Request) GetHeaders() http.Header {
+	return r.Headers
 }
 
 func (r *Request) HasBody() bool {

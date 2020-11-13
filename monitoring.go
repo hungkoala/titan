@@ -16,29 +16,34 @@ const (
 	MONITORING_CHECK_REPLY = "monitoring_check_reply"
 )
 
-var msgNum int64
-var msgTotal uint64
+var msgInNum uint64
+var msgOutNum uint64
+var msgErrNum uint64
 
 type Monitoring struct {
 	Status       string `json:"status"`
 	HostName     string `json:"hostName"`
 	Subject      string `json:"subject"`
-	Alloc        uint64 // currently allocated number of bytes on the heap
-	TotalAlloc   uint64 //cumulative max bytes allocated on the heap (will not decrease),
-	Sys          uint64 //total memory obtained from the OS
-	Mallocs      uint64 //number of allocations
-	Frees        uint64 //number  deallocations
-	LiveObjects  uint64 //live objects (mallocs - frees)
-	PauseTotalNs uint64 //total GC pauses since the app has started,
-	NumGC        uint32 // number of completed GC cycles
+	Alloc        uint64 `json:"alloc"`        // currently allocated number of bytes on the heap
+	TotalAlloc   uint64 `json:"totalAlloc"`   //cumulative max bytes allocated on the heap (will not decrease),
+	Sys          uint64 `json:"sys"`          //total memory obtained from the OS
+	Mallocs      uint64 `json:"mallocs"`      //number of allocations
+	Frees        uint64 `json:"frees"`        //number  deallocations
+	LiveObjects  uint64 `json:"liveObjects"`  //live objects (mallocs - frees)
+	PauseTotalNs uint64 `json:"pauseTotalNs"` //total GC pauses since the app has started,
+	NumGC        uint32 `json:"numGC"`        // number of completed GC cycles
 
-	NumGoroutine int
+	NumGoroutine int `json:"numGoroutine"`
 
-	Pid      int     // process id
-	Cpu      float64 // cpu usage
-	MsgNum   int64   // number of processing messages
-	MsgTotal uint64  // number of messages have been processed
-	Language string  `json:"language"`
+	Pid int     `json:"pid"` // process id
+	Cpu float64 `json:"cpu"` // cpu usage
+
+	MsgInNum  uint64 `json:"msgInNum"`  // number of  in  messages
+	MsgOutNum uint64 `json:"msgOutNum"` // number of  out  messages
+	MsgErrNum uint64 `json:"msgErrNum"` // total of errors
+
+	Language    string `json:"language"`
+	RequestTime int64  `json:"requestTime"`
 }
 
 func DoMonitoringCheck(subject string, m *Message) Monitoring {
@@ -67,8 +72,10 @@ func DoMonitoringCheck(subject string, m *Message) Monitoring {
 		NumGC:        rtm.NumGC,
 		NumGoroutine: runtime.NumGoroutine(),
 		Language:     "Go",
-		MsgNum:       atomic.LoadInt64(&msgNum),
-		MsgTotal:     atomic.LoadUint64(&msgTotal),
+		MsgInNum:     atomic.LoadUint64(&msgInNum),
+		MsgOutNum:    atomic.LoadUint64(&msgOutNum),
+		MsgErrNum:    atomic.LoadUint64(&msgErrNum),
+		RequestTime:  time.Now().UnixNano() / int64(time.Millisecond),
 	}
 
 	if err == nil {
@@ -79,20 +86,15 @@ func DoMonitoringCheck(subject string, m *Message) Monitoring {
 	return monitoring
 }
 
-func BeginRequest(logger logur.Logger, header http.Header) {
+func BeginRequest(logger logur.Logger, request RequestInterface) {
 	go func(logger logur.Logger, h http.Header) {
 		if r := recover(); r != nil {
 			logger.Info("BeginRequest panic recovered")
 		}
-		MsgCountAdd(1)
-		//18446744073709551000 is maximum of unint64
-		if msgTotal >= 18446744073709551000 {
-			atomic.StoreUint64(&msgTotal, 0)
-		}
-		atomic.AddUint64(&msgTotal, 1)
+
+		MsgInNumAdd(1)
 
 		// log  too high latency
-
 		requestTimeStr := h.Get(XRequestTime)
 
 		if requestTimeStr != "" {
@@ -104,22 +106,42 @@ func BeginRequest(logger logur.Logger, header http.Header) {
 				}
 			}
 		}
-	}(logger, header.Clone())
+	}(logger, request.GetHeaders().Clone())
 }
 
-func EndRequest(logger logur.Logger, header http.Header) {
-	go func(logger logur.Logger, header http.Header) {
+func EndRequest(logger logur.Logger, response ResponseInterface) {
+	go func(logger logur.Logger, response ResponseInterface) {
 		if r := recover(); r != nil {
 			logger.Info("EndRequest panic recovered")
 		}
-		MsgCountAdd(-1)
-	}(logger, header)
+		MsgOutNumAdd(1)
+		if response.GetStatusCode() < 200 || response.GetStatusCode() >= 300 {
+			MsgErrNumAdd(1)
+		}
+	}(logger, response)
 }
 
-func MsgCountAdd(v int64) {
-	atomic.AddInt64(&msgNum, v)
+func MsgInNumAdd(v uint64) {
+	if msgInNum >= 18446744073709551000 {
+		atomic.StoreUint64(&msgInNum, 0)
+	}
+	atomic.AddUint64(&msgInNum, v)
 }
 
-func MsgCountLoad() int64 {
-	return atomic.LoadInt64(&msgNum)
+func MsgOutNumAdd(v uint64) {
+	if msgOutNum >= 18446744073709551000 {
+		atomic.StoreUint64(&msgOutNum, 0)
+	}
+	atomic.AddUint64(&msgOutNum, v)
+}
+
+func MsgErrNumAdd(v uint64) {
+	if msgErrNum >= 18446744073709551000 {
+		atomic.StoreUint64(&msgErrNum, 0)
+	}
+	atomic.AddUint64(&msgErrNum, v)
+}
+
+func MsgCountLoad() uint64 {
+	return atomic.LoadUint64(&msgInNum) - atomic.LoadUint64(&msgOutNum)
 }

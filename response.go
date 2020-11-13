@@ -4,6 +4,12 @@ import (
 	"net/http"
 )
 
+type ResponseInterface interface {
+	Write(p []byte) (int, error)
+	WriteHeader(status int)
+	GetStatusCode() int
+}
+
 // Request is a simple struct
 type Response struct {
 	Status     string      `json:"reason"` // e.g. "200 OK"
@@ -38,6 +44,10 @@ func (r *Response) WriteHeader(code int) {
 		r.Headers.Add(contentType, "application/json; charset=utf-8")
 	}
 	r.StatusCode = code
+}
+
+func (r *Response) GetStatusCode() int {
+	return r.StatusCode
 }
 
 // ----------------- response builder code ----------------------
