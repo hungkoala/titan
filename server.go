@@ -80,7 +80,7 @@ func NewServer(subject string, options ...Option) *Server {
 
 	r := chi.NewRouter()
 	r.Use(
-		NewMiddleware("NATS", logger),
+		NewMiddleware("NATS", subject, logger),
 	)
 
 	// set default handlers
@@ -276,6 +276,7 @@ func (srv *Server) Stop() {
 func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queue string, handler http.Handler) (*nats.Subscription, error) {
 	return conn.QueueSubscribe(subject, queue, func(addr string, rpSubject string, r []byte) {
 		go func(enc *nats.EncodedConn, msg []byte) {
+			//t := time.Now()
 			var rq Request
 			err := json.Unmarshal(msg, &rq)
 			if err != nil {
@@ -291,7 +292,11 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 				requestID = RandomString(6)
 				rq.Headers.Set(XRequestId, requestID)
 			}
-			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": rq.Method, "subject": subject})
+			logWithId := log.WithFields(logger, map[string]interface{}{
+				"id":      requestID,
+				"method":  rq.Method,
+				"subject": subject,
+			})
 
 			defer handlePanic(conn, logWithId, rpSubject)
 
@@ -301,6 +306,16 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 
 			BeginRequest(logWithId, &rq)
 			defer EndRequest(logWithId, rp)
+
+			//  hard code to do performance checking, will be removed soon
+			//defer func() {
+			//	if subject == "api.service.db-gateway" {
+			//		elapsedMs := float64(time.Since(t).Nanoseconds()) / 1000000.0
+			//		if elapsedMs > 1000 {
+			//			logger.Warn("slow db query " + rq.URL)
+			//		}
+			//	}
+			//}()
 
 			httpReq, err := NatsRequestToHttpRequest(&rq)
 			if err != nil {

@@ -17,7 +17,7 @@ type Middleware struct {
 	//logger logur.Logger
 }
 
-func NewMiddleware(name string, logger logur.Logger) func(next http.Handler) http.Handler {
+func NewMiddleware(name string, subject string, logger logur.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			t := time.Now()
@@ -29,7 +29,12 @@ func NewMiddleware(name string, logger logur.Logger) func(next http.Handler) htt
 				requestID = RandomString(6)
 				r.Header.Set(XRequestId, requestID)
 			}
-			logWithId := log.WithFields(logger, map[string]interface{}{"id": requestID, "method": r.Method})
+			logWithId := log.WithFields(logger, map[string]interface{}{
+				"id":      requestID,
+				"method":  r.Method,
+				"subject": subject,
+				"url":     r.URL.Path,
+			})
 
 			url := ExtractLoggablePartsFromUrl(r.URL.Path)
 			logWithId.Debug(name+" server received request", map[string]interface{}{"url": url})
@@ -61,9 +66,7 @@ func NewMiddleware(name string, logger logur.Logger) func(next http.Handler) htt
 			rp := NewCustomResponseWriter(w)
 
 			defer func() {
-				logWithId.Info(name+" server request complete", map[string]interface{}{
-					"method":     r.Method,
-					"url":        r.URL.Path,
+				logWithId.Debug(name+" server request complete", map[string]interface{}{
 					"status":     rp.StatusCode,
 					"elapsed_ms": float64(time.Since(t).Nanoseconds()) / 1000000.0},
 				)

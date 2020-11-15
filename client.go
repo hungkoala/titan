@@ -159,38 +159,33 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		subject = Url2Subject(rq.URL)
 	}
 
-	logUrl := rq.URL
-
-	logger.Debug("Nats client sending request to", map[string]interface{}{
-		"url": logUrl, "target subject": subject, "id": requestId, "method": rq.Method})
+	logger.Debug("Nats client sending request to", map[string]interface{}{"url": rq.URL, "id": requestId, "method": rq.Method})
 	rp, err := srv.request(rq, subject)
 
 	// just log event
 	defer func(e error) {
-		var status string
+		elapsedMs := float64(time.Since(t).Nanoseconds()) / 1000000.0
+		logInfo := map[string]interface{}{
+			"id":         requestId,
+			"url":        rq.URL,
+			"elapsed_ms": elapsedMs,
+			"status":     fmt.Sprintf("%d", rp.StatusCode),
+		}
+
 		if e != nil {
-			status = "error"
-			logger.Error(fmt.Sprintf("Nats client receive error %+v", err), map[string]interface{}{
-				"id":             requestId,
-				"err":            e.Error(),
-				"url":            logUrl,
-				"status":         status,
-				"target subject": subject,
-				"elapsed_ms":     float64(time.Since(t).Nanoseconds()) / 1000000.0},
-			)
+			logInfo["status"] = "error"
+			logInfo["err"] = e.Error()
+
 			if reqSpan != nil {
 				ext.LogError(reqSpan, err)
 			}
-		} else {
-			status = fmt.Sprintf("%d", rp.StatusCode)
 		}
-		logger.Debug("Nats client request complete", map[string]interface{}{
-			"id":             requestId,
-			"url":            logUrl,
-			"status":         status,
-			"target subject": subject,
-			"elapsed_ms":     float64(time.Since(t).Nanoseconds()) / 1000000.0},
-		)
+
+		if float64(time.Since(t).Nanoseconds())/1000000.0 > 2000 {
+			logger.Warn("Nats client slow api detected ", logInfo)
+		} else {
+			logger.Debug("Nats client request complete", logInfo)
+		}
 	}(err)
 
 	// server return error object
