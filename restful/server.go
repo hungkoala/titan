@@ -141,7 +141,7 @@ func NewServer(options ...Option) *Server {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
-	r.Use(titan.NewMiddleware("Http", logger))
+	r.Use(titan.NewMiddleware("Http", "local", logger))
 
 	corsDomain := extractCorsDomain(options...)
 
