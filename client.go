@@ -222,6 +222,20 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		return nil, &ClientResponseError{Message: "HTTP 1xx Informational response was not implemented yet", Response: rp}
 	}
 
+	// log  too high latency
+	requestTimeStr := rp.Headers.Get(XResponeTime)
+	if requestTimeStr != "" {
+		requestTime, err := strconv.ParseInt(requestTimeStr, 10, 64)
+		if err == nil {
+			duration := (time.Now().UnixNano() - requestTime) / 1000000
+			if duration > 2000 { // 1 second
+				logger.Warn("response latency is too high", map[string]interface{}{"time": duration})
+			}
+		}
+	}
+
+	rp.Headers.Set(XResponeTime, "")
+
 	return rp, nil
 }
 

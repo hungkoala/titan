@@ -100,9 +100,9 @@ func BeginRequest(logger logur.Logger, request RequestInterface) {
 		if requestTimeStr != "" {
 			requestTime, err := strconv.ParseInt(requestTimeStr, 10, 64)
 			if err == nil {
-				tine := (time.Now().UnixNano() - requestTime) / 1000000
-				if tine > 2000 { // 1 second
-					logger.Warn("request latency is too high", map[string]interface{}{"time": tine})
+				duration := (time.Now().UnixNano() - requestTime) / 1000000
+				if duration > 2000 { // 1 second
+					logger.Warn("request latency is too high", map[string]interface{}{"time": duration})
 				}
 			}
 		}

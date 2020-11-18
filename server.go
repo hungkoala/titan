@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -325,6 +326,8 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 
 			// forward request to Controller
 			handler.ServeHTTP(rp, httpReq)
+
+			rp.Headers.Set(XResponeTime, strconv.FormatInt(time.Now().UnixNano(), 10))
 
 			// send response back
 			err = enc.Publish(rpSubject, rp)
