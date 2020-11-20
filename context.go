@@ -75,11 +75,11 @@ func (c *Context) RequestId() string {
 }
 
 func (c *Context) Origin() string {
-	id, ok := c.Value(XOrigin).(string)
+	origin, ok := c.Value(XOrigin).(string)
 	if !ok {
-		id = ""
+		origin = ""
 	}
-	return id
+	return origin
 }
 
 func (c *Context) UberTraceID() string {
