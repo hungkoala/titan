@@ -74,6 +74,14 @@ func (c *Context) RequestId() string {
 	return id
 }
 
+func (c *Context) Origin() string {
+	origin, ok := c.Value(XOrigin).(string)
+	if !ok {
+		origin = ""
+	}
+	return origin
+}
+
 func (c *Context) UberTraceID() string {
 	id, ok := c.Value(UberTraceID).(string)
 	if !ok {
