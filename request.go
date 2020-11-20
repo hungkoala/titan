@@ -26,6 +26,7 @@ const (
 	jsonContentType = "application/json"
 	XRequestTime    = "X-Request-Time"
 	XResponeTime    = "X-Response-Time"
+	XOrigin    		= "X-Origin"
 )
 
 type RequestInterface interface {

@@ -134,10 +134,19 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		requestId = rq.Headers.Get(XRequestId)
 	}
 
+
 	if requestId == "" {
 		requestId = RandomString(6)
 	}
 	rq.Headers.Set(XRequestId, requestId)
+
+	origin := ctx.Origin()
+	if origin == "" && rq.Headers != nil {
+		origin = rq.Headers.Get(XOrigin)
+	}
+
+	rq.Headers.Set(XOrigin, origin)
+
 	rq.Headers.Set(XRequestTime, strconv.FormatInt(time.Now().UnixNano(), 10))
 
 	uberTraceID := ctx.UberTraceID()
@@ -245,6 +254,7 @@ func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error
 	}
 
 	p.Headers.Set(XRequestId, ctx.RequestId())
+	p.Headers.Set(XOrigin, ctx.Origin())
 	p.Headers.Set(XUserInfo, ctx.UserInfoJson())
 
 	p.Headers.Set(UberTraceID, ctx.UberTraceID())

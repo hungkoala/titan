@@ -47,6 +47,9 @@ func NewMiddleware(name string, subject string, logger logur.Logger) func(next h
 			// add request id
 			ctx = context.WithValue(ctx, XRequestId, requestID)
 
+			origin := r.Header.Get(XOrigin)
+			ctx = context.WithValue(ctx, XOrigin, origin)
+
 			//add user info
 			userInfoJson := r.Header.Get(XUserInfo)
 			if userInfoJson != "" {
