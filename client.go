@@ -134,7 +134,6 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		requestId = rq.Headers.Get(XRequestId)
 	}
 
-
 	if requestId == "" {
 		requestId = RandomString(6)
 	}
@@ -238,9 +237,11 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 		if err == nil {
 			duration := (time.Now().UnixNano() - requestTime) / 1000000
 			if duration > 2000 { // 1 second
-				logger.Warn("response latency is too high", map[string]interface{}{"time": duration})
+				logger.Warn("response latency is too high", map[string]interface{}{"duration": duration})
 			}
 		}
+	} else {
+		logger.Warn("Response time not found ")
 	}
 
 	rp.Headers.Set(XResponeTime, "")

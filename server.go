@@ -308,16 +308,6 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			BeginRequest(logWithId, &rq)
 			defer EndRequest(logWithId, rp)
 
-			//  hard code to do performance checking, will be removed soon
-			//defer func() {
-			//	if subject == "api.service.db-gateway" {
-			//		elapsedMs := float64(time.Since(t).Nanoseconds()) / 1000000.0
-			//		if elapsedMs > 1000 {
-			//			logger.Warn("slow db query " + rq.URL)
-			//		}
-			//	}
-			//}()
-
 			httpReq, err := NatsRequestToHttpRequest(&rq)
 			if err != nil {
 				replyError(enc, logWithId, err, rpSubject)

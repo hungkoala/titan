@@ -105,6 +105,8 @@ func BeginRequest(logger logur.Logger, request RequestInterface) {
 					logger.Warn("request latency is too high", map[string]interface{}{"time": duration})
 				}
 			}
+		} else {
+			logger.Warn("Go Request time not found")
 		}
 	}(logger, request.GetHeaders().Clone())
 }
