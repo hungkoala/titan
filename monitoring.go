@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nats-io/nats.go"
+
 	"logur.dev/logur"
 )
 
@@ -19,6 +21,8 @@ const (
 var msgInNum uint64
 var msgOutNum uint64
 var msgErrNum uint64
+
+var _monitoringSubscription *nats.Subscription
 
 type Monitoring struct {
 	Status       string `json:"status"`
@@ -42,6 +46,8 @@ type Monitoring struct {
 	MsgOutNum uint64 `json:"msgOutNum"` // number of  out  messages
 	MsgErrNum uint64 `json:"msgErrNum"` // total of errors
 
+	MsgPendingNum int `json:"msgPendingNum"` //pending message in queue
+
 	Language    string `json:"language"`
 	RequestTime int64  `json:"requestTime"`
 }
@@ -52,6 +58,14 @@ func DoMonitoringCheck(subject string, m *Message) Monitoring {
 	runtime.ReadMemStats(&rtm)
 
 	process, err := GetCpuUsage()
+
+	var pendingMsg int
+	if _monitoringSubscription != nil && _monitoringSubscription.IsValid() {
+		pMsgs, _, err := _monitoringSubscription.Pending()
+		if err != nil {
+			pendingMsg = pMsgs
+		}
+	}
 
 	monitoring := Monitoring{
 		Status:   UP,
@@ -68,14 +82,15 @@ func DoMonitoringCheck(subject string, m *Message) Monitoring {
 		LiveObjects: rtm.Mallocs - rtm.Frees,
 
 		// GC Stats
-		PauseTotalNs: rtm.PauseTotalNs,
-		NumGC:        rtm.NumGC,
-		NumGoroutine: runtime.NumGoroutine(),
-		Language:     "Go",
-		MsgInNum:     atomic.LoadUint64(&msgInNum),
-		MsgOutNum:    atomic.LoadUint64(&msgOutNum),
-		MsgErrNum:    atomic.LoadUint64(&msgErrNum),
-		RequestTime:  time.Now().UnixNano() / int64(time.Millisecond),
+		PauseTotalNs:  rtm.PauseTotalNs,
+		NumGC:         rtm.NumGC,
+		NumGoroutine:  runtime.NumGoroutine(),
+		Language:      "Go",
+		MsgInNum:      atomic.LoadUint64(&msgInNum),
+		MsgOutNum:     atomic.LoadUint64(&msgOutNum),
+		MsgErrNum:     atomic.LoadUint64(&msgErrNum),
+		RequestTime:   time.Now().UnixNano() / int64(time.Millisecond),
+		MsgPendingNum: pendingMsg,
 	}
 
 	if err == nil {

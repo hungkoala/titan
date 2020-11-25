@@ -186,6 +186,7 @@ func (srv *Server) start(started ...chan interface{}) error {
 	if err != nil {
 		return errors.WithMessage(err, "Nats serve subscribe error ")
 	}
+	_monitoringSubscription = subscription
 
 	err = subscription.SetPendingLimits(config.PendingLimitMsg, config.PendingLimitByte)
 	if err != nil {
