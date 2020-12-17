@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"gitlab.com/silenteer-oss/titan/log"
+
 	"github.com/pkg/errors"
 )
 
@@ -43,6 +45,8 @@ func (r *Message) context() (*Context, error) {
 	ctx = context.WithValue(ctx, XRequestId, r.Headers.Get(XRequestId))
 	ctx = context.WithValue(ctx, XOrigin, r.Headers.Get(XOrigin))
 	ctx = context.WithValue(ctx, UberTraceID, r.Headers.Get(UberTraceID))
+	logWithId := log.WithFields(logger, map[string]interface{}{"id": r.Headers.Get(XRequestId)})
+	ctx = context.WithValue(ctx, XLoggerId, logWithId)
 
 	return NewContext(ctx), nil
 }

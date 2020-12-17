@@ -250,18 +250,18 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 }
 
 func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error {
-	p := Message{
+	m := Message{
 		Headers: http.Header{},
 	}
 
-	p.Headers.Set(XRequestId, ctx.RequestId())
-	p.Headers.Set(XOrigin, ctx.Origin())
-	p.Headers.Set(XUserInfo, ctx.UserInfoJson())
+	m.Headers.Set(XRequestId, ctx.RequestId())
+	m.Headers.Set(XOrigin, ctx.Origin())
+	m.Headers.Set(XUserInfo, ctx.UserInfoJson())
 
-	p.Headers.Set(UberTraceID, ctx.UberTraceID())
+	m.Headers.Set(UberTraceID, ctx.UberTraceID())
 	uberTraceID := ctx.UberTraceID()
-	p.Headers.Set(UberTraceID, uberTraceID)
-	reqSpan := tracing.SpanContext(&p.Headers, subject)
+	m.Headers.Set(UberTraceID, uberTraceID)
+	reqSpan := tracing.SpanContext(&m.Headers, subject)
 	if reqSpan != nil {
 		defer reqSpan.Finish()
 	}
@@ -270,9 +270,9 @@ func (srv *Client) Publish(ctx *Context, subject string, body interface{}) error
 	if err != nil {
 		return err
 	}
-	p.Body = b
+	m.Body = b
 
-	return srv.conn.Publish(subject, p)
+	return srv.conn.Publish(subject, m)
 }
 
 func (srv *Client) Subscribe(subject string, cb Handler) (ISubscription, error) {

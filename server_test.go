@@ -265,10 +265,9 @@ func TestMessageSubscriber(t *testing.T) {
 	messageReceived := make(chan interface{})
 	server := titan.NewServer("api.service.test",
 		titan.Subscribe(func(ms *titan.MessageSubscriber) {
-			ms.Register("test", "api.service.test", func(p *titan.Message) error {
+			ms.Register("test", "api.service.test", func(m *titan.Message) error {
 				close(messageReceived)
-
-				_, serr = p.Parse(&tb)
+				_, serr = m.Parse(&tb)
 				if serr != nil {
 					return serr
 				}

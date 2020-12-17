@@ -145,7 +145,9 @@ func writeResponse(w http.ResponseWriter, rp *Response) error {
 func handleJsonRequest(ctx *Context, r *Request, cb Handler) (response *Response) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
+			errMsg := fmt.Sprintf("stacktrace from panic: %s", string(debug.Stack()))
+			ctx.Logger().Error(errMsg)
+			fmt.Println(errMsg)
 			builder := NewResBuilder()
 			response = builder.
 				StatusCode(500).

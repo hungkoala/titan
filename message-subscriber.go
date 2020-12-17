@@ -31,7 +31,7 @@ func (s *MessageSubscriber) Register(subject string, queue string, handler Messa
 	s.registrations = append(s.registrations, &Registration{
 		Subject: subject,
 		Queue:   queue,
-		Handler: createHandlerWithRecover(handler),
+		Handler: s.createHandlerWithRecover(handler),
 	})
 }
 
@@ -49,15 +49,6 @@ func (s *MessageSubscriber) subscribe(conn *nats.EncodedConn) error {
 	return nil
 }
 
-//func (s *MessageSubscriber) unsubscribe() {
-//	for _, sub := range s.subscriptions {
-//		er := sub.Unsubscribe()
-//		if er != nil {
-//			s.logger.Error(fmt.Sprintf("Unsubscribe error: %+v\n ", er))
-//		}
-//	}
-//}
-
 func (s *MessageSubscriber) drain() {
 	for _, sub := range s.subscriptions {
 		er := sub.Drain()
@@ -67,14 +58,22 @@ func (s *MessageSubscriber) drain() {
 	}
 }
 
-func createHandlerWithRecover(next MessageHandler) MessageHandler {
+func (s *MessageSubscriber) createHandlerWithRecover(next MessageHandler) MessageHandler {
 	return func(msg *Message) (err error) {
+		var ctx *Context
 		defer func() {
 			if _err := recover(); _err != nil {
 				err = fmt.Errorf("panicking from subscriber %+v", _err)
-				fmt.Println("stacktrace from panic subscriber: \n" + string(debug.Stack()))
+				errMsg := fmt.Sprintf("stacktrace from panic subscriber: %s", string(debug.Stack()))
+				if ctx != nil {
+					ctx.Logger().Error(errMsg)
+				} else {
+					s.logger.Error(errMsg)
+				}
+				fmt.Println(errMsg)
 			}
 		}()
+		ctx, _ = msg.context()
 		return next(msg)
 	}
 }

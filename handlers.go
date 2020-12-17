@@ -46,7 +46,7 @@ func (h *DefaultHandlers) AppInfo(ctx *Context) (*AppInfo, error) {
 
 func (h *DefaultHandlers) Subscribe(s *MessageSubscriber) {
 	healthCheckSubject := fmt.Sprintf("%s_%s", HEALTH_CHECK, strings.ReplaceAll(hostname, " ", "_"))
-	s.Register(healthCheckSubject, "", func(p *Message) error {
+	s.Register(healthCheckSubject, "", func(m *Message) error {
 		return GetDefaultClient().Publish(NewBackgroundContext(), HEALTH_CHECK_REPLY, h.DoHealthCheck())
 	})
 	s.Register(MONITORING_CHECK, "", func(m *Message) error {
