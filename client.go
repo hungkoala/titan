@@ -185,6 +185,7 @@ func (srv *Client) SendRequest(ctx *Context, rq *Request) (*Response, error) {
 			logInfo["err"] = e.Error()
 
 			if reqSpan != nil {
+				reqSpan.SetTag("err", true)
 				ext.LogError(reqSpan, err)
 			}
 		}
