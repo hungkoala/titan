@@ -147,12 +147,17 @@ func handleJsonRequest(ctx *Context, r *Request, cb Handler) (response *Response
 		if err := recover(); err != nil {
 			errMsg := fmt.Sprintf("stacktrace from panic: %s", string(debug.Stack()))
 			ctx.Logger().Error(errMsg)
-			fmt.Println(errMsg)
+			reqSpan := tracing.SpanContext(&r.Headers, r.URL)
+			defer reqSpan.Finish()
+			if reqSpan != nil {
+				reqSpan.SetTag("err", true)
+				ext.LogError(reqSpan, fmt.Errorf("%s", errMsg))
+			}
 			builder := NewResBuilder()
 			response = builder.
 				StatusCode(500).
 				BodyJSON(&DefaultJsonError{
-					Message:     fmt.Sprintf("panic : %v", err),
+					Message:     fmt.Sprintf("panic : %v", errMsg),
 					ServerError: "SOME_THINGS_WENT_WRONG",
 					TraceId:     ctx.RequestId(),
 					Links:       map[string][]string{"self": {r.URL}},
