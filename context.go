@@ -3,6 +3,7 @@ package titan
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"sync"
 	"time"
 
@@ -72,6 +73,31 @@ func (c *Context) RequestId() string {
 		id = ""
 	}
 	return id
+}
+
+func (c *Context) RequestTimeZone() *time.Location {
+	request := c.Request()
+	timeZoneOffset := request.Headers.Get(XRequestTimeOffset)
+
+	loc := time.Local
+	if len(timeZoneOffset) > 0 {
+		offset, err := strconv.Atoi(timeZoneOffset)
+		if err != nil {
+			GetLogger().Error("Time Zone Offset is not a number ", map[string]interface{}{XRequestTimeOffset: timeZoneOffset})
+		}
+		// Time Zone offset is calculated from client timezone to UTC, if offset is negative, it will be in a positive time offset from UTC
+		// eg. Vietnam is UTC+7 but time zone offset is -420 minutes
+		offset = -offset
+		h := offset / 60
+		if h > 0 {
+			loc = time.FixedZone("UTC+"+strconv.Itoa(h), offset*60)
+		} else {
+			loc = time.FixedZone("UTC"+strconv.Itoa(h), offset*60)
+		}
+
+	}
+
+	return loc
 }
 
 func (c *Context) Origin() string {
