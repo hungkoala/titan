@@ -76,6 +76,11 @@ func (r *ResponseBuilder) AddHeader(key, value string) *ResponseBuilder {
 	return r
 }
 
+func (r *ResponseBuilder) SetCookie(cookieValue string) *ResponseBuilder {
+	r.headers.Add("Set-Cookie", cookieValue)
+	return r
+}
+
 func (r *ResponseBuilder) SetHeader(key, value string) *ResponseBuilder {
 	r.headers.Set(key, value)
 	return r
