@@ -323,6 +323,7 @@ func subscribe(conn *nats.EncodedConn, logger logur.Logger, subject string, queu
 			// send response back
 			err = enc.Publish(rpSubject, rp)
 			if err != nil {
+				replyError(enc, logWithId, err, rpSubject)
 				logWithId.Error(fmt.Sprintf("Nats error on publish result back: %+v\n ", err))
 			}
 		}(conn, r)
