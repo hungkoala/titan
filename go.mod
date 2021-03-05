@@ -1,16 +1,18 @@
 module gitlab.com/silenteer-oss/titan
 
-go 1.13
+go 1.15
 
 require (
 	emperror.dev/errors v0.7.0
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0 // indirect
+	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/go-chi/cors v1.1.1
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/go-playground/validator/v10 v10.2.0
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/websocket v1.4.2
+	github.com/hashicorp/consul/api v1.1.0
 	github.com/nats-io/nats.go v1.10.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
