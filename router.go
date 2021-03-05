@@ -108,7 +108,11 @@ func (m *Mux) RegisterJson(method, path string, h Handler, auths ...AuthFunc) {
 		} else {
 			ctx = ctx.WithValue(XRequest, newRequest)
 			if !isAuthorized(ctx, auths) {
-				rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+				if ctx.UserInfo() != nil {
+					rp = createForbiddenResponse(ctx.RequestId(), newRequest.URL)
+				} else {
+					rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+				}
 			} else {
 				rp = handleJsonRequest(ctx, newRequest, h)
 			}
