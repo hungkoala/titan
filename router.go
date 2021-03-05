@@ -69,7 +69,11 @@ func (m *Mux) Register(method, path string, handlerFunc HandlerFunc, auths ...Au
 		} else {
 			ctx = ctx.WithValue(XRequest, newRequest)
 			if !isAuthorized(ctx, auths) {
-				rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+				if ctx.UserInfo() != nil {
+					rp = createForbiddenResponse(ctx.RequestId(), newRequest.URL)
+				} else {
+					rp = createUnAuthorizeResponse(ctx.RequestId(), newRequest.URL)
+				}
 			} else {
 				// call handler
 				rp = handlerFunc(ctx, newRequest)
@@ -453,6 +457,17 @@ func createUnAuthorizeResponse(traceId, url string) *Response {
 		StatusCode(401).
 		BodyJSON(&DefaultJsonError{
 			Message: "Unauthorized",
+			TraceId: traceId,
+			Links:   map[string][]string{"self": {url}},
+		}).
+		Build()
+}
+
+func createForbiddenResponse(traceId, url string) *Response {
+	return NewResBuilder().
+		StatusCode(403).
+		BodyJSON(&DefaultJsonError{
+			Message: "Forbidden",
 			TraceId: traceId,
 			Links:   map[string][]string{"self": {url}},
 		}).
