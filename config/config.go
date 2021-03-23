@@ -52,7 +52,7 @@ func InitRemoteConfig(subject string) error {
 				fmt.Printf("Panicking %s \n", debug.Stack())
 			}
 		}()
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Minute * 1)
 		for {
 			<-ticker.C
 			err := viper.WatchRemoteConfig()
