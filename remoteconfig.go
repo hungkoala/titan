@@ -1,12 +1,11 @@
-package config
+package titan
 
 import (
 	"fmt"
-	"log"
 	"runtime/debug"
 	"time"
 
-	consulapi "github.com/armon/consul-api"
+	consulapi "github.com/hashicorp/consul/api"
 	_ "github.com/spf13/viper/remote"
 
 	"github.com/pkg/errors"
@@ -14,31 +13,31 @@ import (
 )
 
 func InitRemoteConfig(subject string) error {
-	viper.SetDefault("CONSUL_PORT", "8500")
-	consulHost := fmt.Sprintf("localhost:%s", viper.GetString("CONSUL_PORT"))
+	consulHost := viper.GetString(ConsulAddr)
 
+	ctx := NewBackgroundContext()
 	err := viper.AddRemoteProvider("consul", consulHost, fmt.Sprintf("/%s", subject))
 	if err != nil {
 		return errors.WithMessagef(err, "err config consul")
 	}
 
-	viper.SetConfigType("json") // Need to explicitly set this to json
+	viper.SetConfigType("yaml") // Need to explicitly set this to json
 	err = viper.ReadRemoteConfig()
 	if err != nil && err.Error() == "Remote Configurations Error: No Files Found" {
 		config := consulapi.DefaultConfig()
 		consul, err := consulapi.NewClient(config)
 		if err != nil {
-			return errors.WithMessage(err, "err connect to consul")
+			return errors.WithMessagef(err, "err connect to consul, ", consulHost)
 		}
 
 		_, err = consul.KV().Put(&consulapi.KVPair{
 			Key:   subject,
-			Value: []byte("{}"),
+			Value: []byte(""),
 			Flags: 0,
 		}, nil)
 
 		if err != nil {
-			return errors.WithMessage(err, "err put to consul")
+			return errors.WithMessagef(err, "err put to consul ", consulHost)
 		}
 	}
 
@@ -49,7 +48,7 @@ func InitRemoteConfig(subject string) error {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Printf("Panicking %s \n", debug.Stack())
+				ctx.Logger().Error(fmt.Sprintf("Panicking %s \n", debug.Stack()))
 			}
 		}()
 		ticker := time.NewTicker(time.Minute * 1)
@@ -57,7 +56,7 @@ func InitRemoteConfig(subject string) error {
 			<-ticker.C
 			err := viper.WatchRemoteConfig()
 			if err != nil {
-				log.Printf("unable to read remote config: %v", err)
+				ctx.Logger().Error(fmt.Sprintf("unable to read remote config: %v", err))
 				continue
 			}
 		}

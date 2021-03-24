@@ -47,6 +47,8 @@ const (
 	LoggingFormat  = "Logging.Format"
 	LoggingLevel   = "Logging.Level"
 	LoggingNoColor = "Logging.NoColor"
+
+	ConsulAddr = "CONSUL_HTTP_ADDR"
 )
 
 func init() {
@@ -80,6 +82,7 @@ func init() {
 	viper.SetDefault(NatsPendingLimitByte, -1)
 	viper.SetDefault(NatsPendingLimitMsg, -1)
 
+	viper.SetDefault(ConsulAddr, "127.0.0.1:8500")
 }
 
 type NatsConfig struct {

@@ -5,7 +5,6 @@ go 1.15
 require (
 	emperror.dev/errors v0.7.0
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0 // indirect
-	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/go-chi/cors v1.1.1
 	github.com/go-playground/validator v9.31.0+incompatible
