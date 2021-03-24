@@ -70,13 +70,13 @@ func Subscribe(r func(*MessageSubscriber)) Option {
 
 func NewServer(subject string, options ...Option) *Server {
 	tracing.InitTracing(subject)
+	// default logger
+	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
 
 	if err := InitRemoteConfig(subject); err != nil {
 		logger.Error(fmt.Sprintf("InitRemoteConfig error: %+v\n ", err))
 	}
 
-	// default logger
-	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
 	natConfig := GetNatsConfig()
 	logConfig := GetLogConfig()
 

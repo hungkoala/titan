@@ -27,7 +27,7 @@ func InitRemoteConfig(subject string) error {
 		config := consulapi.DefaultConfig()
 		consul, err := consulapi.NewClient(config)
 		if err != nil {
-			return errors.WithMessagef(err, "err connect to consul, ", consulHost)
+			return errors.WithMessagef(err, "err connect to consul, %s", consulHost)
 		}
 
 		_, err = consul.KV().Put(&consulapi.KVPair{
@@ -37,7 +37,7 @@ func InitRemoteConfig(subject string) error {
 		}, nil)
 
 		if err != nil {
-			return errors.WithMessagef(err, "err put to consul ", consulHost)
+			return errors.WithMessagef(err, "err put to consul %s", consulHost)
 		}
 	}
 
