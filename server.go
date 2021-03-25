@@ -74,7 +74,7 @@ func NewServer(subject string, options ...Option) *Server {
 	logger := log.WithFields(GetLogger(), map[string]interface{}{"subject": subject})
 
 	if err := InitRemoteConfig(subject); err != nil {
-		logger.Error(fmt.Sprintf("InitRemoteConfig error: %+v\n ", err))
+		logger.Info(fmt.Sprintf("InitRemoteConfig error: %+v\n ", err))
 	}
 
 	natConfig := GetNatsConfig()

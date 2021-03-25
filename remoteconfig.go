@@ -3,9 +3,9 @@ package titan
 import (
 	"fmt"
 	"runtime/debug"
-	"time"
 
-	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/api/watch"
 	_ "github.com/spf13/viper/remote"
 
 	"github.com/pkg/errors"
@@ -21,28 +21,25 @@ func InitRemoteConfig(subject string) error {
 		return errors.WithMessagef(err, "err config consul")
 	}
 
-	viper.SetConfigType("yaml") // Need to explicitly set this to json
+	viper.SetConfigType("yaml")
 	err = viper.ReadRemoteConfig()
-	if err != nil && err.Error() == "Remote Configurations Error: No Files Found" {
-		config := consulapi.DefaultConfig()
-		consul, err := consulapi.NewClient(config)
-		if err != nil {
-			return errors.WithMessagef(err, "err connect to consul, %s", consulHost)
+	if err != nil {
+		if err.Error() != "Remote Configurations Error: No Files Found" {
+			return errors.WithMessagef(err, "err read remote config")
 		}
 
-		_, err = consul.KV().Put(&consulapi.KVPair{
-			Key:   subject,
-			Value: []byte(""),
-			Flags: 0,
-		}, nil)
-
+		err = createFolder(subject, consulHost)
 		if err != nil {
-			return errors.WithMessagef(err, "err put to consul %s", consulHost)
+			return errors.WithMessagef(err, "err create consul folder %s", subject)
 		}
 	}
 
+	wp, err := watch.Parse(map[string]interface{}{
+		"type": "key",
+		"key":  subject,
+	})
 	if err != nil {
-		return errors.WithMessagef(err, "err read config %s", consulHost)
+		return errors.WithMessagef(err, "err Parse config")
 	}
 
 	go func() {
@@ -51,16 +48,47 @@ func InitRemoteConfig(subject string) error {
 				ctx.Logger().Error(fmt.Sprintf("Panicking %s \n", debug.Stack()))
 			}
 		}()
-		ticker := time.NewTicker(time.Minute * 1)
-		for {
-			<-ticker.C
+		wp.Handler = func(idx uint64, data interface{}) {
+			switch d := data.(type) {
+			case *api.KVPair:
+				ctx.Logger().Info(fmt.Sprintf("Folder %s changed Value: %s", d.Key, maskLeft(d.Value)))
+			}
 			err := viper.WatchRemoteConfig()
 			if err != nil {
 				ctx.Logger().Error(fmt.Sprintf("unable to read remote config: %v", err))
-				continue
 			}
 		}
+
+		wp.Run(consulHost)
 	}()
 
 	return nil
+}
+
+func createFolder(subject string, consulHost string) error {
+	config := api.DefaultConfig()
+	consul, err := api.NewClient(config)
+	if err != nil {
+		return errors.WithMessagef(err, "err connect to consul, %s", consulHost)
+	}
+
+	_, err = consul.KV().Put(&api.KVPair{
+		Key:   subject,
+		Value: []byte(""),
+		Flags: 0,
+	}, nil)
+
+	if err != nil {
+		return errors.WithMessagef(err, "err put to consul %s", consulHost)
+	}
+
+	return nil
+}
+
+func maskLeft(s []byte) string {
+	rs := s
+	for i := 0; i < len(rs)-4; i++ {
+		rs[i] = 'X'
+	}
+	return string(rs)
 }
