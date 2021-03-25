@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"gitlab.com/silenteer-oss/titan"
 
 	"gitlab.com/silenteer-oss/titan/test"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type GetResult struct {
@@ -318,4 +324,102 @@ func TestUnwrapError(t *testing.T) {
 	if !ok {
 		t.Error("return error is not ClientResponseError")
 	}
+}
+
+var yamlExample = []byte(`
+Hacker: true
+name: steve
+hobbies:
+- skateboarding
+- snowboarding
+- go
+clothing:
+  jacket: leather
+  trousers: denim
+age: 35
+eyes : brown
+beard: true
+`)
+
+func TestConsulRemoteConfig(t *testing.T) {
+	host := runConsul(t)
+	viper.SetDefault(api.HTTPAddrEnvName, host)
+	key := "api.test.config"
+
+	assert.Empty(t, viper.GetString("name"))
+	assert.Equal(t, 0, viper.GetInt("age"))
+	assert.False(t, viper.GetBool("beard"))
+	assert.Nil(t, viper.GetStringMap("clothing")["jacket"])
+	assert.Empty(t, viper.GetString("clothing.trousers"))
+
+	setValueToConsul(t, key, host)
+
+	newServer := titan.NewServer(key)
+	go newServer.Start()
+	t.Cleanup(func() {
+		newServer.Stop()
+	})
+
+	time.Sleep(2 * time.Second)
+	assert.Equal(t, "steve", viper.GetString("name"))
+	assert.Equal(t, 35, viper.GetInt("age"))
+	assert.Equal(t, true, viper.GetBool("beard"))
+	assert.Equal(t, "leather", viper.GetStringMap("clothing")["jacket"])
+	assert.Equal(t, "denim", viper.GetString("clothing.trousers"))
+}
+
+func setValueToConsul(t *testing.T, key string, host string) {
+	t.Helper()
+	config := api.DefaultConfig()
+	config.Address = host
+
+	consul, err := api.NewClient(config)
+	if err != nil {
+		require.Nil(t, err)
+	}
+
+	data, err := consul.KV().Put(&api.KVPair{
+		Key:   key,
+		Value: yamlExample,
+		Flags: 0,
+	}, nil)
+
+	require.NotNil(t, data)
+	require.Nil(t, err)
+}
+
+func runConsul(t *testing.T) string {
+	t.Helper()
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		Image:        "consul:1.8.4",
+		ExposedPorts: []string{"8500/tcp"},
+		WaitingFor:   wait.ForLog("Consul agent running!"),
+	}
+	consulC, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+	if err != nil {
+		require.Nil(t, err)
+	}
+	t.Cleanup(func() {
+		consulC.Terminate(ctx)
+	})
+	ip, err := consulC.Host(ctx)
+	if err != nil {
+		require.Nil(t, err)
+	}
+	port, err := consulC.MappedPort(ctx, "8500")
+	if err != nil {
+		require.Nil(t, err)
+	}
+	host := fmt.Sprintf("http://%s:%s", ip, port.Port())
+	resp, err := http.Get(host)
+	require.Nil(t, err)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d. Got %d.", http.StatusOK, resp.StatusCode)
+	}
+	return host
 }

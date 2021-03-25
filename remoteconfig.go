@@ -21,6 +21,7 @@ func InitRemoteConfig(subject string) error {
 		return errors.WithMessagef(err, "err config consul")
 	}
 
+	ctx.Logger().Info(fmt.Sprintf("Connect to consul at: %s, folder: %s\n", consulHost, subject))
 	viper.SetConfigType("yaml")
 	err = viper.ReadRemoteConfig()
 	if err != nil {
@@ -67,6 +68,7 @@ func InitRemoteConfig(subject string) error {
 
 func createFolder(subject string, consulHost string) error {
 	config := api.DefaultConfig()
+	config.Address = consulHost
 	consul, err := api.NewClient(config)
 	if err != nil {
 		return errors.WithMessagef(err, "err connect to consul, %s", consulHost)
