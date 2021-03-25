@@ -21,7 +21,7 @@ before_script:
   - go get -v -d ./...
 
 test:
-  image: golang:1.13-alpine
+  image: golang:1.16.2-alpine3.13
   stage: test
   before_script:
     - apk --no-cache add git make
