@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -18,8 +17,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type GetResult struct {
@@ -342,8 +339,6 @@ beard: true
 `)
 
 func TestConsulRemoteConfig(t *testing.T) {
-	host := runConsul(t)
-	viper.SetDefault(api.HTTPAddrEnvName, host)
 	key := "api.test.config"
 
 	assert.Empty(t, viper.GetString("name"))
@@ -352,7 +347,7 @@ func TestConsulRemoteConfig(t *testing.T) {
 	assert.Nil(t, viper.GetStringMap("clothing")["jacket"])
 	assert.Empty(t, viper.GetString("clothing.trousers"))
 
-	setValueToConsul(t, key, host)
+	setValueToConsul(t, key)
 
 	newServer := titan.NewServer(key)
 	go newServer.Start()
@@ -368,10 +363,9 @@ func TestConsulRemoteConfig(t *testing.T) {
 	assert.Equal(t, "denim", viper.GetString("clothing.trousers"))
 }
 
-func setValueToConsul(t *testing.T, key string, host string) {
+func setValueToConsul(t *testing.T, key string) {
 	t.Helper()
 	config := api.DefaultConfig()
-	config.Address = host
 
 	consul, err := api.NewClient(config)
 	if err != nil {
@@ -386,40 +380,4 @@ func setValueToConsul(t *testing.T, key string, host string) {
 
 	require.NotNil(t, data)
 	require.Nil(t, err)
-}
-
-func runConsul(t *testing.T) string {
-	t.Helper()
-	ctx := context.Background()
-	req := testcontainers.ContainerRequest{
-		Image:        "consul:1.8.4",
-		ExposedPorts: []string{"8500/tcp"},
-		WaitingFor:   wait.ForLog("Consul agent running!"),
-	}
-	consulC, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-	if err != nil {
-		require.Nil(t, err)
-	}
-	t.Cleanup(func() {
-		consulC.Terminate(ctx)
-	})
-	ip, err := consulC.Host(ctx)
-	if err != nil {
-		require.Nil(t, err)
-	}
-	port, err := consulC.MappedPort(ctx, "8500")
-	if err != nil {
-		require.Nil(t, err)
-	}
-	host := fmt.Sprintf("http://%s:%s", ip, port.Port())
-	resp, err := http.Get(host)
-	require.Nil(t, err)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status code %d. Got %d.", http.StatusOK, resp.StatusCode)
-	}
-	return host
 }
