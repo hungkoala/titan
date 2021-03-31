@@ -26,11 +26,14 @@ test:
   before_script:
     - apk --no-cache add git make
   script:
-#    - pwd
-#    - ls -la
-#    - go version
     - echo "Start NATS server"
     - wget "https://github.com/nats-io/nats-server/releases/download/v2.1.0/nats-server-v2.1.0-linux-amd64.zip"
     - unzip nats-server-v2.1.0-linux-amd64.zip
     - ./nats-server-v2.1.0-linux-amd64/nats-server &
+
+    - wget "https://releases.hashicorp.com/consul/1.9.4/consul_1.9.4_linux_amd64.zip"
+    - unzip consul_1.9.4_linux_amd64.zip
+    - ls -la
+    - ./consul agent -dev &
+
     - go clean -testcache  && go test ./...  --count 1
